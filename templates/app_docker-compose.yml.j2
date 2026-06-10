@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Nginx リバースプロキシ
+  # ----------------------------------------------------------------------------
+  web_server:
+    image: nginx:1.25-alpine
+    container_name: web_server
+    ports:
+      - "8080:80"
+    volumes:
+      - /opt/app/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - nextjs_app
+    networks:
+      - app_frontend_net
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ----------------------------------------------------------------------------
+  # 2. Next.js 15 アプリケーション（Dockerfile内製化版）
+  # ----------------------------------------------------------------------------
+  nextjs_app:
+    build:
+      context: /opt/app/nextjs_app
+      dockerfile: Dockerfile
+    container_name: nextjs_app
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - DATABASE_URL=postgresql://postgres:postgres_secure_pass_2026@postgres_db:5432/app_db?schema=public
+      - NEXTAUTH_SECRET=change-this-to-a-strong-random-secret
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:8080}
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    # 🚀 修正の核心: prisma.config.ts のバグ（dotenv欠損）を完全に回避し、直接スキーマを指定してDBを高速プッシュ・同期
+    command: sh -c "npx prisma db push --schema=./prisma/schema.prisma && node server.js"
+    networks:
+      - app_frontend_net
+      - app_backend_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ----------------------------------------------------------------------------
+  # 3. PostgreSQL データベース
+  # ----------------------------------------------------------------------------
+  postgres_db:
+    image: postgres:16-alpine
+    container_name: postgres_db
+    environment:
+      - POSTGRES_PASSWORD=postgres_secure_pass_2026
+      - POSTGRES_DB=app_db
+    ports:
+      - "5432:5432"
+    networks:
+      - app_backend_net
+    volumes:
+      - /opt/app/postgres_db_data:/var/lib/postgresql/data:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 1024M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  app_frontend_net:
+    driver: bridge
+  app_backend_net:
+    driver: bridge

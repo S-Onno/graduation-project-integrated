@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AreaType {
+  JUNGLE
+  SAVANNA
+  SNOW
+  WATER
+}
+
+enum AnimalStage {
+  BABY
+  CHILD
+  ADULT
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  is_admin      Boolean   @default(false)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  tasks         Task[]
+  userAnimals   UserAnimal[]
+  userAreas     UserArea[]
+  zooPlacements ZooPlacement[]
+  adminLogs     AdminLog[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  is_done     Boolean   @default(false)
+  done_at     DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Area {
+  id        String   @id @default(cuid())
+  name      String
+  area_type AreaType @unique
+  order     Int
+
+  animals   Animal[]
+  userAreas UserArea[]
+}
+
+model Animal {
+  id        String   @id @default(cuid())
+  name      String
+  area_type AreaType
+
+  area        Area         @relation(fields: [area_type], references: [area_type])
+  userAnimals UserAnimal[]
+}
+
+model UserAnimal {
+  id          String      @id @default(cuid())
+  userId      String
+  animalId    String
+  stage       AnimalStage @default(BABY)
+  task_count  Int         @default(0)
+  is_placed   Boolean     @default(false)
+  acquired_at DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  animal       Animal        @relation(fields: [animalId], references: [id])
+  zooPlacement ZooPlacement?
+}
+
+model UserArea {
+  id          String    @id @default(cuid())
+  userId      String
+  area_type   AreaType
+  is_unlocked Boolean   @default(false)
+  unlocked_at DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area Area @relation(fields: [area_type], references: [area_type])
+
+  @@unique([userId, area_type])
+}
+
+model ZooPlacement {
+  id           String   @id @default(cuid())
+  userId       String
+  userAnimalId String   @unique
+  area_type    AreaType
+  pos_x        Float
+  pos_y        Float
+  placed_at    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAnimal UserAnimal @relation(fields: [userAnimalId], references: [id])
+}
+
+model AdminLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  target_id  String
+  detail     Json?
+  created_at DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id])
+}

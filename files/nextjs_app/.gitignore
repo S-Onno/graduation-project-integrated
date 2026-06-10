@@ -1,0 +1,17 @@
+# 環境変数（シークレット保護）
+.env
+.env.local
+.env.*.local
+
+# 依存関係
+node_modules/
+
+# ビルド成果物
+.next/
+out/
+
+# Prisma生成ファイル
+src/generated/
+
+# TypeScriptビルドキャッシュ
+tsconfig.tsbuildinfo
