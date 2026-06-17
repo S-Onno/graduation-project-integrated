@@ -28,6 +28,9 @@ graduation-project-docker-create/
 │   └── postgres_db_data/           # DB実データ（git管理外）
 └── .gitignore
 ```
+具体的なディレクトリ構成については下記を参照
+https://app.notion.com/p/_-36b8ff38ca3980a6a0f7fb2f59dfde6d?source=copy_link
+
 
 ## 前提条件
 
@@ -50,7 +53,18 @@ cd graduation-project-docker-create/files/nextjs_app
 
 ### 1-2. 依存パッケージのインストール
 
+
+6/10時点
 ```bash
+npm install
+```
+(node.jsのインタビューが必要な場合は、下記も実行してください。)
+```bash
+curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
+セットアップのなにか
+sudo dnf install -y nodejs
+nodeのインストール
+そのあとに
 npm install
 ```
 
@@ -72,6 +86,39 @@ cp .env.example .env
 # NEXTAUTH_SECRET の生成例
 openssl rand -base64 32
 ```
+
+.envの中身（コピペ用）
+```bash
+# ============================================================
+# files\nextjs_app\.env
+# ローカル開発用 環境変数
+# ※ このファイルはGit管理対象外 (.gitignore で除外)
+# ============================================================
+
+# --- Database ---
+# ローカルで postgres:16-alpine を起動している場合は localhost:5432
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/app_db?schema=public"
+
+# --- NextAuth.js ---
+NEXTAUTH_SECRET="Qz+QChHEkWWTOO2w4/YPRnRNrcM2yla552loudN3ax8="
+NEXTAUTH_URL="http://localhost:3000"
+
+```
+
+.envの中身（コピペ用）
+```bash
+# files\nextjs_app\.env.example
+
+# --- Database ---
+# ローカルで postgres:16-alpine を起動している場合は localhost:5432
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/app_db?schema=public"
+
+# --- NextAuth.js ---
+NEXTAUTH_SECRET="Qz+QChHEkWWTOO2w4/YPRnRNrcM2yla552loudN3ax8="
+NEXTAUTH_URL="http://localhost:3000"
+
+```
+
 
 ### 1-4. PostgreSQLの起動（ローカル検証用）
 
