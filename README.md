@@ -157,35 +157,24 @@ npm run dev
 
 ## 2. Docker Composeによるフル環境構築（Nginx + Next.js + PostgreSQL）
 
-本番／デモサーバー（AlmaLinux等）で、3コンテナ構成（Nginx・Next.js・PostgreSQL）を一括起動する手順です。
+3コンテナ構成（Nginx・Next.js・PostgreSQL）を一括起動する手順です。`templates/app_docker-compose.yml` は相対パスで `files/` 配下を参照しているので、**`git clone` したディレクトリ構成のまま、特別な配置作業なしに**ローカル開発機・デモサーバーのどちらでも動作します。
 
-> ⚠️ **既知の制限**: 現在の `templates/app_docker-compose.yml` は、サーバー上の `/opt/app/` 配下にファイルが配置されていることを前提としています。今後のタスクで相対パス化を予定しています。
+開発中にコードを変更した場合は `--build` 付きで再実行すれば反映されます（ホットリロードではなく、コード変更ごとに再ビルドする運用です）。
 
-### 2-1. ファイルの配置
-
-サーバー上に `/opt/app/` ディレクトリを作成し、以下のように配置します。
-
-```bash
-sudo mkdir -p /opt/app
-sudo cp -r files/nextjs_app /opt/app/nextjs_app
-sudo cp files/nginx.conf /opt/app/nginx.conf
-sudo mkdir -p /opt/app/postgres_db_data
-```
-
-### 2-2. 環境変数ファイルの作成
+### 2-1. 環境変数ファイルの作成
 
 ```bash
 cp templates/.env.example templates/.env
 ```
 
-`templates/.env` を開き、`NEXTAUTH_URL` を自分のサーバーのIPアドレスに書き換えます。
+`templates/.env` を開き、`NEXTAUTH_URL` を自分の環境のIPアドレス（ローカルのみで使うなら `localhost`のままでOK）に書き換えます。
 
 ```env
-# 例: サーバーのIPが 192.168.1.50 の場合
+# 例: サーバー/VMのIPが 192.168.1.50 の場合
 NEXTAUTH_URL=http://192.168.1.50:8080
 ```
 
-### 2-3. コンテナの起動
+### 2-2. コンテナの起動
 
 ```bash
 docker compose -f templates/app_docker-compose.yml --env-file templates/.env up -d --build
@@ -197,6 +186,12 @@ docker compose -f templates/app_docker-compose.yml --env-file templates/.env up 
 - `npx prisma db push` によるスキーマ反映
 - Next.jsアプリの起動
 
+### 2-3. コード変更を反映する
+
+```bash
+docker compose -f templates/app_docker-compose.yml --env-file templates/.env up -d --build nextjs_app
+```
+
 ### 2-4. 動作確認
 
 ```bash
@@ -207,7 +202,7 @@ docker compose -f templates/app_docker-compose.yml ps
 docker compose -f templates/app_docker-compose.yml logs -f nextjs_app
 ```
 
-ブラウザで `http://<サーバーのIP>:8080` にアクセスして動作確認してください。
+ブラウザで `http://localhost:8080`（または設定したIP）にアクセスして動作確認してください。
 
 ### 2-5. 停止・後片付け
 
@@ -240,3 +235,5 @@ sudo rm -rf templates/postgres_db_data/*
 | `npx prisma db push` が `Connection refused` で失敗する | PostgreSQLコンテナが起動完了しているか確認（`docker compose ps` でhealthyか確認） |
 | ログイン後すぐセッションが切れる / 認証エラー | `NEXTAUTH_URL` が実際にアクセスしているURL・ポートと一致しているか確認 |
 | `npx prisma generate` 実行後も型エラーが出る | `src/generated/prisma` が生成されているか確認し、エディタを再起動 |
+| `docker compose up` 時にPostgreSQLが `port is already allocated` で失敗する | セクション1の `local_postgres` コンテナ（ポート5432）が起動中だと衝突します。`docker stop local_postgres` で停止してから実行してください |
+| WSL環境で `npm install` が `UNC パスはサポートされません` 等のエラーで失敗する | WindowsのPowerShell/CMDから実行している可能性があります。WSL（Bash）のターミナルから `/home/...` のLinuxパスで実行してください |
