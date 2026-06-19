@@ -65,8 +65,8 @@ services:
     image: postgres:16-alpine
     container_name: postgres_db
     environment:
-      POSTGRES_PASSWORD: {{ vault_db_root_password }}
-      POSTGRES_DB: {{ db_name | default('app_db') }}
+      POSTGRES_PASSWORD: '{{ vault_db_root_password }}'
+      POSTGRES_DB: '{{ db_name | default('app_db') }}'
     ports:
       - "5432:5432"
     networks:
