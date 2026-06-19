@@ -31,18 +31,18 @@ services:
       dockerfile: Dockerfile
     container_name: nextjs_app
     environment:
-      - NODE_ENV={{ app_env | default('production') }}
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
-      # 🔐 【重要】パスワードを urlencode フィルタで変換し、特殊記号をURL安全な形式にする
-      - DATABASE_URL="postgresql://postgres:{{ vault_db_root_password | urlencode }}@postgres_db:5432/{{ db_name | default('app_db') }}?schema=public"
-      - NEXTAUTH_SECRET="{{ vault_nextauth_secret }}"
-      - NEXTAUTH_URL="{{ app_nextauth_url | default('http://10.149.245.115:8080') }}"
+      NODE_ENV: {{ app_env | default('production') }}
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      # 🔐 特殊文字対策: クォーテーションなしで定義し、内部で展開させる
+      DATABASE_URL: postgresql://postgres:{{ vault_db_root_password | urlencode }}@postgres_db:5432/{{ db_name | default('app_db') }}?schema=public
+      NEXTAUTH_SECRET: {{ vault_nextauth_secret }}
+      NEXTAUTH_URL: {{ app_nextauth_url | default('http://10.149.245.115:8080') }}
     depends_on:
       postgres_db:
         condition: service_healthy
-    # Prismaマイグレーションと起動を確実に実行
-    command: sh -c "npx prisma db push --schema=./prisma/schema.prisma && node server.js"
+    # 修正: コンテナ内のフルパスを指定して確実に実行する
+    command: /bin/sh -c "npx prisma db push --schema=./prisma/schema.prisma && node server.js"
     networks:
       - app_frontend_net
       - app_backend_net
@@ -65,8 +65,8 @@ services:
     image: postgres:16-alpine
     container_name: postgres_db
     environment:
-      - POSTGRES_PASSWORD="{{ vault_db_root_password }}"
-      - POSTGRES_DB="{{ db_name | default('app_db') }}"
+      POSTGRES_PASSWORD: {{ vault_db_root_password }}
+      POSTGRES_DB: {{ db_name | default('app_db') }}
     ports:
       - "5432:5432"
     networks:
