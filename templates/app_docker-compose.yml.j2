@@ -10,7 +10,8 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - /opt/app/nginx.conf:/etc/nginx/nginx.conf:ro
+      # 🎯 修正: Server B展開後のディレクトリ構造に適合
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - nextjs_app
     networks:
@@ -23,24 +24,24 @@ services:
         max-file: "3"
 
   # ----------------------------------------------------------------------------
-  # 2. Next.js 15 アプリケーション（Dockerfile内製化版）
+  # 2. Next.js 15 アプリケーション
   # ----------------------------------------------------------------------------
   nextjs_app:
     build:
-      context: /opt/app/nextjs_app
+      context: ./nextjs_app
       dockerfile: Dockerfile
     container_name: nextjs_app
     environment:
-      - NODE_ENV=production
+      - NODE_ENV={{ app_env | default('production') }}
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      - DATABASE_URL=postgresql://postgres:postgres_secure_pass_2026@postgres_db:5432/app_db?schema=public
-      - NEXTAUTH_SECRET=change-this-to-a-strong-random-secret
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:8080}
+      # 🔐 Vault変数から動的にパスワードを注入
+      - DATABASE_URL=postgresql://postgres:{{ vault_db_root_password }}@postgres_db:5432/{{ db_name | default('app_db') }}?schema=public
+      - NEXTAUTH_SECRET={{ vault_nextauth_secret }}
+      - NEXTAUTH_URL={{ app_nextauth_url | default('http://localhost:8080') }}
     depends_on:
       postgres_db:
         condition: service_healthy
-    # 🚀 修正の核心: prisma.config.ts のバグ（dotenv欠損）を完全に回避し、直接スキーマを指定してDBを高速プッシュ・同期
     command: sh -c "npx prisma db push --schema=./prisma/schema.prisma && node server.js"
     networks:
       - app_frontend_net
@@ -64,16 +65,17 @@ services:
     image: postgres:16-alpine
     container_name: postgres_db
     environment:
-      - POSTGRES_PASSWORD=postgres_secure_pass_2026
-      - POSTGRES_DB=app_db
+      - POSTGRES_PASSWORD={{ vault_db_root_password }}
+      - POSTGRES_DB={{ db_name | default('app_db') }}
     ports:
       - "5432:5432"
     networks:
       - app_backend_net
     volumes:
-      - /opt/app/postgres_db_data:/var/lib/postgresql/data:Z
+      # 🎯 SELinuxを通過させる :Z フラグ
+      - ./postgres_db_data:/var/lib/postgresql/data:Z
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d app_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d {{ db_name | default('app_db') }}"]
       interval: 10s
       timeout: 5s
       retries: 10
