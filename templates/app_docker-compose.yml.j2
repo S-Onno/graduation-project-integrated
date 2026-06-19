@@ -10,6 +10,10 @@ services:
     ports:
       - "8080:80"
     volumes:
+<<<<<<< HEAD
+=======
+      # Ansibleで /opt/app/nginx.conf に配布される前提のパス
+>>>>>>> e393d492b6f201b34e37884033716cffb9fbb8f4
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - nextjs_app
@@ -27,6 +31,10 @@ services:
   # ----------------------------------------------------------------------------
   nextjs_app:
     build:
+<<<<<<< HEAD
+=======
+      # /opt/app/nextjs_app/Dockerfile を参照
+>>>>>>> e393d492b6f201b34e37884033716cffb9fbb8f4
       context: ./nextjs_app
       dockerfile: Dockerfile
     container_name: nextjs_app
@@ -34,13 +42,21 @@ services:
       - NODE_ENV={{ app_env | default('production') }}
       - PORT=3000
       - HOSTNAME=0.0.0.0
+<<<<<<< HEAD
       # 🔐 【重要】環境変数をクォーテーションで保護し、改行コード等の不正な値を許容しない構成
       - DATABASE_URL="postgresql://postgres:{{ vault_db_root_password }}@postgres_db:5432/{{ db_name | default('app_db') }}?schema=public"
       - NEXTAUTH_SECRET="{{ vault_nextauth_secret }}"
       - NEXTAUTH_URL="{{ app_nextauth_url | default('http://localhost:8080') }}"
+=======
+      # 🔐 Vault変数から動的にパスワードを注入（安全な構成）
+      - DATABASE_URL=postgresql://postgres:{{ vault_db_root_password }}@postgres_db:5432/{{ db_name | default('app_db') }}?schema=public
+      - NEXTAUTH_SECRET={{ vault_nextauth_secret }}
+      - NEXTAUTH_URL={{ app_nextauth_url | default('http://localhost:8080') }}
+>>>>>>> e393d492b6f201b34e37884033716cffb9fbb8f4
     depends_on:
       postgres_db:
         condition: service_healthy
+    # Prismaのスキーマ場所を明示指定し、起動前の同期を確実に行う
     command: sh -c "npx prisma db push --schema=./prisma/schema.prisma && node server.js"
     networks:
       - app_frontend_net
@@ -71,6 +87,10 @@ services:
     networks:
       - app_backend_net
     volumes:
+<<<<<<< HEAD
+=======
+      # SELinuxを通過させる :Z フラグを付与
+>>>>>>> e393d492b6f201b34e37884033716cffb9fbb8f4
       - ./postgres_db_data:/var/lib/postgresql/data:Z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d {{ db_name | default('app_db') }}"]
