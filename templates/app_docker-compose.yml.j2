@@ -10,12 +10,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-<<<<<<< HEAD
-      # 🎯 修正: Server B展開後のディレクトリ構造に適合
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-=======
-      - ../files/nginx.conf:/etc/nginx/nginx.conf:ro
->>>>>>> 98070c13535b5ef8422f01085edce901dea00855
     depends_on:
       - nextjs_app
     networks:
@@ -32,21 +27,17 @@ services:
   # ----------------------------------------------------------------------------
   nextjs_app:
     build:
-<<<<<<< HEAD
       context: ./nextjs_app
-=======
-      context: ../files/nextjs_app
->>>>>>> 98070c13535b5ef8422f01085edce901dea00855
       dockerfile: Dockerfile
     container_name: nextjs_app
     environment:
       - NODE_ENV={{ app_env | default('production') }}
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      # 🔐 Vault変数から動的にパスワードを注入
-      - DATABASE_URL=postgresql://postgres:{{ vault_db_root_password }}@postgres_db:5432/{{ db_name | default('app_db') }}?schema=public
-      - NEXTAUTH_SECRET={{ vault_nextauth_secret }}
-      - NEXTAUTH_URL={{ app_nextauth_url | default('http://localhost:8080') }}
+      # 🔐 【重要】環境変数をクォーテーションで保護し、改行コード等の不正な値を許容しない構成
+      - DATABASE_URL="postgresql://postgres:{{ vault_db_root_password }}@postgres_db:5432/{{ db_name | default('app_db') }}?schema=public"
+      - NEXTAUTH_SECRET="{{ vault_nextauth_secret }}"
+      - NEXTAUTH_URL="{{ app_nextauth_url | default('http://localhost:8080') }}"
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -73,17 +64,13 @@ services:
     image: postgres:16-alpine
     container_name: postgres_db
     environment:
-      - POSTGRES_PASSWORD={{ vault_db_root_password }}
-      - POSTGRES_DB={{ db_name | default('app_db') }}
+      - POSTGRES_PASSWORD="{{ vault_db_root_password }}"
+      - POSTGRES_DB="{{ db_name | default('app_db') }}"
     ports:
       - "5432:5432"
     networks:
       - app_backend_net
     volumes:
-<<<<<<< HEAD
-      # 🎯 SELinuxを通過させる :Z フラグ
-=======
->>>>>>> 98070c13535b5ef8422f01085edce901dea00855
       - ./postgres_db_data:/var/lib/postgresql/data:Z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d {{ db_name | default('app_db') }}"]
