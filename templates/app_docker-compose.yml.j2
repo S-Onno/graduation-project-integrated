@@ -10,12 +10,8 @@ services:
     ports:
       - "8080:80"
     volumes:
-<<<<<<< HEAD
-      # 🎯 修正: Server B展開後のディレクトリ構造に適合
+      # Ansibleで /opt/app/nginx.conf に配布される前提のパス
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-=======
-      - ../files/nginx.conf:/etc/nginx/nginx.conf:ro
->>>>>>> 98070c13535b5ef8422f01085edce901dea00855
     depends_on:
       - nextjs_app
     networks:
@@ -32,24 +28,22 @@ services:
   # ----------------------------------------------------------------------------
   nextjs_app:
     build:
-<<<<<<< HEAD
+      # /opt/app/nextjs_app/Dockerfile を参照
       context: ./nextjs_app
-=======
-      context: ../files/nextjs_app
->>>>>>> 98070c13535b5ef8422f01085edce901dea00855
       dockerfile: Dockerfile
     container_name: nextjs_app
     environment:
       - NODE_ENV={{ app_env | default('production') }}
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      # 🔐 Vault変数から動的にパスワードを注入
+      # 🔐 Vault変数から動的にパスワードを注入（安全な構成）
       - DATABASE_URL=postgresql://postgres:{{ vault_db_root_password }}@postgres_db:5432/{{ db_name | default('app_db') }}?schema=public
       - NEXTAUTH_SECRET={{ vault_nextauth_secret }}
       - NEXTAUTH_URL={{ app_nextauth_url | default('http://localhost:8080') }}
     depends_on:
       postgres_db:
         condition: service_healthy
+    # Prismaのスキーマ場所を明示指定し、起動前の同期を確実に行う
     command: sh -c "npx prisma db push --schema=./prisma/schema.prisma && node server.js"
     networks:
       - app_frontend_net
@@ -80,10 +74,7 @@ services:
     networks:
       - app_backend_net
     volumes:
-<<<<<<< HEAD
-      # 🎯 SELinuxを通過させる :Z フラグ
-=======
->>>>>>> 98070c13535b5ef8422f01085edce901dea00855
+      # SELinuxを通過させる :Z フラグを付与
       - ./postgres_db_data:/var/lib/postgresql/data:Z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d {{ db_name | default('app_db') }}"]
