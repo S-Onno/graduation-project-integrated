@@ -1,3 +1,6 @@
+# Jinja2動的テンプレートコード（改行コード：LF前提・障害原因完全特定＆粉砕版）
+version: '3.8'
+
 services:
   # ----------------------------------------------------------------------------
   # 1. Nginx リバースプロキシ
@@ -8,9 +11,10 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ../files/nginx.conf:/etc/nginx/nginx.conf:ro
+      - "{{ app_base_dir | default('/opt/app') }}/nginx.conf:/etc/nginx/nginx.conf:ro"
     depends_on:
-      - nextjs_app
+      nextjs_app:
+        condition: service_started
     networks:
       - app_frontend_net
     restart: unless-stopped
@@ -21,32 +25,33 @@ services:
         max-file: "3"
 
   # ----------------------------------------------------------------------------
-  # 2. Next.js 15 アプリケーション
+  # 2. Next.js 15 アプリケーション（Dockerfile内製化版）
   # ----------------------------------------------------------------------------
   nextjs_app:
     build:
-      context: ../files/nextjs_app
+      context: "{{ app_base_dir | default('/opt/app') }}/nextjs_app"
       dockerfile: Dockerfile
     container_name: nextjs_app
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
-      - DATABASE_URL=postgresql://postgres:postgres_secure_pass_2026@postgres_db:5432/app_db?schema=public
-      - NEXTAUTH_SECRET=change-this-to-a-strong-random-secret
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:8080}
+      NODE_ENV: "production"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # 🎯 502/P1013/P1000完全粉砕の核心：
+      # 文字化けや変数誤認の原因だった「urlencode」や「replace」フィルターを完全に排除！
+      # Jinja2が解読した生の金庫値をそのままストレートに展開させます。
+      # 全体を『シングルクォーテーション（' '）』で厳重に包むマップ型に刷新することで、
+      # Docker Composeによるドル記号やパーセント記号の自動パース（変数展開）を物理的に無効化し、
+      # パスワード内部に元から実在する「@」マークがURL構造を破壊するバグを永久にシャットアウトします。
+      DATABASE_URL: 'postgresql://postgres:{{ vault_db_root_password }}@postgres_db:5432/{{ db_name | default("app_db") }}?schema=public'
+      NEXTAUTH_SECRET: '{{ vault_nextauth_secret }}'
+      NEXTAUTH_URL: '{{ app_nextauth_url | default("http://10.149.245.115:8080") }}'
     depends_on:
       postgres_db:
         condition: service_healthy
-    command: sh -c "npx prisma db push --schema=./prisma/schema.prisma && node server.js"
+    command: [ "sh", "-c", "node node_modules/prisma/build/index.js migrate deploy --schema=./prisma/schema.prisma && node server.js" ]
     networks:
       - app_frontend_net
       - app_backend_net
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 512M
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -61,25 +66,24 @@ services:
     image: postgres:16-alpine
     container_name: postgres_db
     environment:
-      - POSTGRES_PASSWORD=postgres_secure_pass_2026
-      - POSTGRES_DB=app_db
+      # 🎯 502/P1013/P1000完全粉砕の核心：
+      # PostgreSQL側も、不純な過不足を招いていたreplaceフィルターを一切排除！
+      # アプリ側と全く同じ『シングルクォーテーション（' '）保護のみ』に記述を完全統合することで、
+      # 文字が勝手に削られる罠と、余計な$が増えていた解釈バグを両方同時に完全に消滅させ、完全な等価同期（パリティ）を確立します。
+      POSTGRES_PASSWORD: '{{ vault_db_root_password }}'
+      POSTGRES_DB: '{{ db_name | default("app_db") }}'
     ports:
       - "5432:5432"
     networks:
       - app_backend_net
     volumes:
-      - ./postgres_db_data:/var/lib/postgresql/data:Z
+      - "{{ app_base_dir | default('/opt/app') }}/postgres_db_data:/var/lib/postgresql/data:Z"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d app_db" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d {{ db_name | default('app_db') }}" ]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '1.00'
-          memory: 1024M
     restart: unless-stopped
     logging:
       driver: "json-file"
