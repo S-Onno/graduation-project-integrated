@@ -157,9 +157,7 @@ npm run dev
 
 ## 2. Docker Composeによるフル環境構築（Nginx + Next.js + PostgreSQL）
 
-3コンテナ構成（Nginx・Next.js・PostgreSQL）を一括起動する手順です。`templates/app_docker-compose.yml` は相対パスで `files/` 配下を参照しているので、**`git clone` したディレクトリ構成のまま、特別な配置作業なしに**ローカル開発機・デモサーバーのどちらでも動作します。
-
-開発中にコードを変更した場合は `--build` 付きで再実行すれば反映されます（ホットリロードではなく、コード変更ごとに再ビルドする運用です）。
+3コンテナ構成（Nginx・Next.js・PostgreSQL）を一括起動する手順です。**Section 1（ローカル開発環境のセットアップ）の完了後**に行ってください。
 
 ### 2-1. 環境変数ファイルの作成
 
@@ -167,44 +165,70 @@ npm run dev
 cp templates/.env.example templates/.env
 ```
 
-`templates/.env` を開き、`NEXTAUTH_URL` を自分の環境のIPアドレス（ローカルのみで使うなら `localhost`のままでOK）に書き換えます。
+ローカル（localhost）で動かす場合はそのままでOKです。別のIPやサーバーで動かす場合は `templates/.env` を開き、`NEXTAUTH_URL` を書き換えてください。
 
 ```env
-# 例: サーバー/VMのIPが 192.168.1.50 の場合
+# 例: サーバーのIPが 192.168.1.50 の場合
 NEXTAUTH_URL=http://192.168.1.50:8080
 ```
 
-### 2-2. コンテナの起動
+### 2-2. コンテナの起動（ビルド込み）
 
 ```bash
 docker compose -f templates/app_docker-compose.yml --env-file templates/.env up -d --build
 ```
 
-起動時に自動的に以下が実行されます。
+### 2-3. コンテナの状態確認
 
-- PostgreSQLコンテナの起動とヘルスチェック
-- `npx prisma db push` によるスキーマ反映
-- Next.jsアプリの起動
+```bash
+docker compose -f templates/app_docker-compose.yml ps
+```
 
-### 2-3. コード変更を反映する
+期待する結果：3つすべてが `running` で、`postgres_db` が `healthy`
+
+```
+NAME          STATUS
+web_server    running
+nextjs_app    running
+postgres_db   running (healthy)
+```
+
+### 2-4. ログ確認（Prisma + Next.js の起動ログ）
+
+```bash
+docker compose -f templates/app_docker-compose.yml logs --tail=50 nextjs_app
+```
+
+確認ポイント：
+
+- `The database is already in sync with the Prisma schema.` が出ているか
+- `✓ Ready in XXXms` が出ているか
+
+### 2-5. アプリへの疎通確認
+
+```bash
+curl -I http://localhost:8080
+```
+
+期待する結果：`HTTP/1.1 200 OK` または `HTTP/1.1 307 Temporary Redirect`（ログインページへのリダイレクト）
+
+### 2-6. DBの死活確認
+
+```bash
+docker exec postgres_db pg_isready -U postgres -d app_db
+```
+
+期待する結果：`accepting connections`
+
+### 2-7. コード変更を反映する
+
+コードを変更した場合は `--build` 付きで再実行します（ホットリロードではなく、コード変更ごとに再ビルドする運用です）。
 
 ```bash
 docker compose -f templates/app_docker-compose.yml --env-file templates/.env up -d --build nextjs_app
 ```
 
-### 2-4. 動作確認
-
-```bash
-# コンテナの状態確認
-docker compose -f templates/app_docker-compose.yml ps
-
-# ログ確認
-docker compose -f templates/app_docker-compose.yml logs -f nextjs_app
-```
-
-ブラウザで `http://localhost:8080`（または設定したIP）にアクセスして動作確認してください。
-
-### 2-5. 停止・後片付け
+### 2-8. 停止・後片付け
 
 ```bash
 # コンテナ停止
