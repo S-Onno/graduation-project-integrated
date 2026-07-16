@@ -18,11 +18,16 @@ services:
     networks:
       - app_frontend_net
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ app_nginx_cpu_limit | default('1.0') }}"
+          memory: "{{ app_nginx_memory_limit | default('1G') }}"
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "{{ docker_log_max_size | default('10m') }}"
+        max-file: "{{ docker_log_max_file | default('3') }}"
 
   # ----------------------------------------------------------------------------
   # 2. Next.js 15 アプリケーション（Dockerfile内製化版）
@@ -53,17 +58,22 @@ services:
       - app_frontend_net
       - app_backend_net
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ nextjs_cpu_limit | default('1.5') }}"
+          memory: "{{ nextjs_memory_limit | default('1.5G') }}"
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "{{ docker_log_max_size | default('10m') }}"
+        max-file: "{{ docker_log_max_file | default('3') }}"
 
   # ----------------------------------------------------------------------------
-  # 3. PostgreSQL データベース
+  # 3. PostgreSQL データベース (高可用性チューニング版)
   # ----------------------------------------------------------------------------
   postgres_db:
-    image: postgres:16-alpine
+    image: "postgres:{{ app_pg_version | default('16-alpine') }}"
     container_name: postgres_db
     environment:
       # 🎯 データベース公式コンテナ側はURL構造ではないため urlencode は不要ですが、
@@ -72,10 +82,11 @@ services:
       POSTGRES_DB: '{{ db_name | default("app_db") }}'
     ports:
       - "5432:5432"
+    command: postgres -c max_connections={{ app_pg_max_connections | default(200) }}
     networks:
       - app_backend_net
     volumes:
-      - "{{ app_base_dir | default('/opt/app') }}/postgres_db_data:/var/lib/postgresql/data:Z"
+      - "{{ app_pg_data_path | default('/opt/app/postgres_data') }}/:/var/lib/postgresql/data:Z"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d {{ db_name | default('app_db') }}"]
       interval: 10s
@@ -83,11 +94,16 @@ services:
       retries: 10
       start_period: 30s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ app_pg_cpu_limit | default('1.5') }}"
+          memory: "{{ app_pg_memory_limit | default('1.5G') }}"
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "{{ docker_log_max_size | default('10m') }}"
+        max-file: "{{ docker_log_max_file | default('3') }}"
 
 networks:
   app_frontend_net:
