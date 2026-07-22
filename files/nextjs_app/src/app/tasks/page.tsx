@@ -11,6 +11,7 @@ interface Task {
   id: string
   title: string
   description?: string | null
+  due_date?: string | null   // 追加
   is_done: boolean
   created_at: string
 }
@@ -78,11 +79,11 @@ export default function TasksPage() {
     if (res.ok) setTasks(prev => prev.filter(t => t.id !== id))
   }
 
-  const handleAdd = async (title: string, description: string) => {
+  const handleAdd = async (title: string, description: string, dueDate: string) => {  // 変更
     const res = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description }),
+      body: JSON.stringify({ title, description, due_date: dueDate || null }),  // 変更
     })
     if (res.ok) fetchTasks()
   }
