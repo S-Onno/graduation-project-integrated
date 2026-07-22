@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 interface Props {
-  onAdd: (title: string, description: string) => Promise<void>
+  onAdd: (title: string, description: string, dueDate: string) => Promise<void>
   onClose: () => void
 }
 
@@ -11,15 +11,17 @@ export function TaskForm({ onAdd, onClose }: Props) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
+  const [dueDate, setDueDate] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
     setLoading(true)
-    await onAdd(title.trim(), description.trim())
+    await onAdd(title.trim(), description.trim(), dueDate)
     setLoading(false)
     setTitle('')
     setDescription('')
+    setDueDate('')   // ← この行を追加
     onClose()
   }
 
@@ -48,6 +50,17 @@ export function TaskForm({ onAdd, onClose }: Props) {
               rows={3}
               style={{ resize: 'vertical' }}
             />
+            </div>
+          <div className="form-group">
+            <label className="form-label">期限日時（任意）</label>
+            <input
+              type="datetime-local"
+              className="form-input"
+              value={dueDate}
+              onChange={e => setDueDate(e.target.value)}
+            />
+          </div>
+          <div className="modal-actions">
           </div>
           <div className="modal-actions">
             <button type="button" className="btn-ghost" onClick={onClose}>キャンセル</button>

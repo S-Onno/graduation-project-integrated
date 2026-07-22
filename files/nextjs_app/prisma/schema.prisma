@@ -81,6 +81,7 @@ model Task {
   userId      String
   title       String
   description String?
+  due_date    DateTime?
   is_done     Boolean   @default(false)
   done_at     DateTime?
   created_at  DateTime  @default(now())
