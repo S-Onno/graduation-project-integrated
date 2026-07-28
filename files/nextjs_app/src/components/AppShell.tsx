@@ -8,9 +8,6 @@ import { signOut } from 'next-auth/react'
 const NAV = [
   { href: '/tasks',      label: 'タスク管理',    icon: '📋' },
   { href: '/zoo',        label: '動物園',        icon: '🦁' },
-  { href: '/zoo/training', label: '育成中',        icon: '🐣' },
-  { href: '/zoo/zukan',  label: '図鑑',          icon: '📖' },
-  { href: '/zoo/map',    label: 'エリアマップ',  icon: '🗺️' },
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -62,14 +59,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <h1 className="topbar-title">
             {NAV.find(n => pathname.startsWith(n.href))?.label ?? 'ZooTask'}
           </h1>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <Link href="/tasks" className={`btn-ghost${pathname.startsWith('/tasks') ? '' : ''}`} style={{ fontSize: '13px' }}>
-              📋 タスク
-            </Link>
-            <Link href="/zoo" className="btn-primary" style={{ fontSize: '13px' }}>
-              🦁 動物園
-            </Link>
-          </div>
         </header>
 
         <main className="page-container">

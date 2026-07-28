@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { TaskCard } from '@/components/task/TaskCard'
 import { TaskForm } from '@/components/task/TaskForm'
+import { IkuseiView, IkuseiHandle } from '@/app/zoo/training/page'
 
 interface Task {
   id: string
@@ -33,6 +34,8 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [showForm, setShowForm] = useState(false)
   const [toast, setToast] = useState<Toast | null>(null)
+  
+  const ikuseiRef = useRef<IkuseiHandle>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
@@ -56,6 +59,10 @@ export default function TasksPage() {
     const data = await res.json()
 
     setTasks(prev => prev.map(t => t.id === id ? { ...t, is_done: true } : t))
+
+    if (ikuseiRef.current) {
+      ikuseiRef.current.reload()
+    }
 
     const update: AnimalUpdate = data.animalUpdate
     if (update?.type === 'acquired') {
@@ -94,43 +101,56 @@ export default function TasksPage() {
 
   return (
     <AppShell>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-        <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 700 }}>タスク管理</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            タスクを完了すると動物が育ちます 🐾
-          </p>
-        </div>
-        <button className="btn-primary" onClick={() => setShowForm(true)}>
-          ＋ 追加
-        </button>
-      </div>
-
-      {/* 未完了タスク */}
-      <div className="section-header" style={{ marginTop: '0' }}>
-        <h3>📋 未完了 ({pending.length})</h3>
-      </div>
-      {pending.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-          タスクはありません。右上の「＋ 追加」からタスクを作成してください。
-        </div>
-      ) : (
-        pending.map(task => (
-          <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} />
-        ))
-      )}
-
-      {/* 完了済みタスク */}
-      {done.length > 0 && (
-        <>
-          <div className="section-header">
-            <h3>✅ 完了済み ({done.length})</h3>
+      {/* 💡 【修正】余白（マージン）を排除し、タスクエリア:ゲームパネル＝約6:4 (col-span-7:col-span-5) に変更 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
+        
+        {/* 左側：タスクパネル (.task-panel) - 約60%の幅 (7/12) */}
+        <div className="task-panel lg:col-span-7 space-y-6">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>タスク管理</h2>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                タスクを完了すると動物が育ちます 🐾
+              </p>
+            </div>
+            <button className="btn-primary" onClick={() => setShowForm(true)}>
+              ＋ 追加
+            </button>
           </div>
-          {done.map(task => (
-            <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} />
-          ))}
-        </>
-      )}
+
+          {/* 未完了タスク */}
+          <div className="section-header" style={{ marginTop: '0' }}>
+            <h3>📋 未完了 ({pending.length})</h3>
+          </div>
+          {pending.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+              タスクはありません。右上の「＋ 追加」からタスクを作成してください。
+            </div>
+          ) : (
+            pending.map(task => (
+              <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} />
+            ))
+          )}
+
+          {/* 完了済みタスク */}
+          {done.length > 0 && (
+            <>
+              <div className="section-header">
+                <h3>✅ 完了済み ({done.length})</h3>
+              </div>
+              {done.map(task => (
+                <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} />
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* 右側：ゲームパネル (.game-panel) - 横幅を従来の約1.3倍となる約40% (5/12) に拡大拡張 */}
+        <div className="lg:col-span-5 lg:sticky lg:top-6 w-full">
+          <IkuseiView ref={ikuseiRef} isEmbedded={true} />
+        </div>
+
+      </div>
 
       {showForm && <TaskForm onAdd={handleAdd} onClose={() => setShowForm(false)} />}
 
