@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
   if (!title) return NextResponse.json({ error: 'タイトルは必須です' }, { status: 400 })
 
   // due_dateが入力されている場合のみ日付として正しいかチェック
-let dueDate: Date | undefined = undefined
+  let dueDate: Date | undefined = undefined
 if (due_date) {
-  const parsed = new Date(due_date)
+    const parsed = new Date(due_date)
   if (isNaN(parsed.getTime())) {
     return NextResponse.json({ error: '期限日時の形式が正しくありません' }, { status: 400 })
   }
