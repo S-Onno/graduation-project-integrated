@@ -12,6 +12,7 @@ interface Task {
   id: string
   title: string
   description?: string | null
+  due_date?: string | null   // 追加
   is_done: boolean
   created_at: string
 }
@@ -34,7 +35,7 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [showForm, setShowForm] = useState(false)
   const [toast, setToast] = useState<Toast | null>(null)
-  
+
   const ikuseiRef = useRef<IkuseiHandle>(null)
 
   useEffect(() => {
@@ -85,11 +86,11 @@ export default function TasksPage() {
     if (res.ok) setTasks(prev => prev.filter(t => t.id !== id))
   }
 
-  const handleAdd = async (title: string, description: string) => {
+  const handleAdd = async (title: string, description: string, dueDate: string) => {  // 変更
     const res = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description }),
+      body: JSON.stringify({ title, description, due_date: dueDate || null }),  // 変更
     })
     if (res.ok) fetchTasks()
   }
@@ -103,7 +104,7 @@ export default function TasksPage() {
     <AppShell>
       {/* 💡 【修正】余白（マージン）を排除し、タスクエリア:ゲームパネル＝約6:4 (col-span-7:col-span-5) に変更 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
-        
+
         {/* 左側：タスクパネル (.task-panel) - 約60%の幅 (7/12) */}
         <div className="task-panel lg:col-span-7 space-y-6">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
