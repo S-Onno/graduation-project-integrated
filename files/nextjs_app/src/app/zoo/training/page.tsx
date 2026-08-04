@@ -29,9 +29,25 @@ interface IkuseiViewProps {
   isEmbedded?: boolean
 }
 
-// 動物イラストを表示するスロット。
-// 今はプレースホルダー(黒枠)だが、imageSrcを渡すだけで
-// 実際のイラストに差し替えられるようにしてある。
+// テスト用: 動物種類 × 育成段階(赤ちゃん→子供→大人)ごとのイラストパス一覧
+const TEST_ANIMAL_STAGE_IMAGES = [
+  [
+    '/assets/animals/snow/shirokuma_baby.png',
+    '/assets/animals/snow/shirokuma_child.png',
+    '/assets/animals/snow/shirokuma_adult.png',
+  ],
+  [
+    '/assets/animals/snow/penguin_baby.png',
+    '/assets/animals/snow/penguin_child.png',
+    '/assets/animals/snow/penguin_adult.png',
+  ],
+  [
+    '/assets/animals/snow/azarashi_baby.png',
+    '/assets/animals/snow/azarashi_child.png',
+    '/assets/animals/snow/azarashi_adult.png',
+  ],
+]
+
 function AnimalDisplaySlot({ imageSrc }: { imageSrc?: string }) {
   return (
     <div
@@ -41,7 +57,7 @@ function AnimalDisplaySlot({ imageSrc }: { imageSrc?: string }) {
         aspectRatio: '1 / 1',
         top: '55%',
         left: '50%',
-        transform: 'translate(-50%, -50%)', // 中心を基準位置(縦30%・横50%)に合わせる
+        transform: 'translate(-50%, -50%)',
         border: imageSrc ? 'none' : '4px dashed #000000',
         backgroundColor: imageSrc ? 'transparent' : 'rgba(0, 0, 0, 0.15)',
       }}
@@ -65,6 +81,10 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>((props, ref)
   const [animals, setAnimals] = useState<UserAnimal[]>([])
   const [placingId, setPlacingId] = useState<string | null>(null)
   const [toast, setToast] = useState('')
+
+  // ▼ テスト用: あとで削除予定
+  const [testAnimalIndex, setTestAnimalIndex] = useState(0)
+  const [testStageIndex, setTestStageIndex] = useState(0)
 
   const fetchAnimals = useCallback(async () => {
     const res = await fetch('/api/user-animals')
@@ -156,7 +176,23 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>((props, ref)
 
       {/* 芝生エリア：動物イラストを表示する領域全体(相対位置の基準) */}
       <div className="flex-1 relative">
-        <AnimalDisplaySlot />
+        <AnimalDisplaySlot imageSrc={TEST_ANIMAL_STAGE_IMAGES[testAnimalIndex][testStageIndex]} />
+
+        {/* ▼ テスト用ボタン(あとで削除予定) */}
+        <div className="absolute bottom-2 right-2 flex gap-1.5 z-40">
+          <button
+            onClick={() => setTestAnimalIndex((prev) => (prev + 1) % TEST_ANIMAL_STAGE_IMAGES.length)}
+            className="bg-slate-800/90 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-md"
+          >
+            動物切替
+          </button>
+          <button
+            onClick={() => setTestStageIndex((prev) => (prev + 1) % TEST_ANIMAL_STAGE_IMAGES[0].length)}
+            className="bg-slate-800/90 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-md"
+          >
+            成長テスト
+          </button>
+        </div>
       </div>
 
       {toast && (
