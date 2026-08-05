@@ -18,19 +18,24 @@ export function TaskForm({ onAdd, onClose }: Props) {
   const [selectedHour, setSelectedHour] = useState('23')
   const [selectedMinute, setSelectedMinute] = useState('59')
   const [showCalendar, setShowCalendar] = useState(false)
+  const [isAllDay, setIsAllDay] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // 選択した日付・時刻をISO文字列に変換する
   const buildDueDate = (): string => {
     if (!selectedDate) return ''
     const d = new Date(selectedDate)
-    d.setHours(parseInt(selectedHour), parseInt(selectedMinute), 0, 0)
+    if (isAllDay) {
+      d.setHours(23, 59, 59, 0)
+    } else {
+      d.setHours(parseInt(selectedHour), parseInt(selectedMinute), 0, 0)
+    }
     return d.toISOString()
   }
 
-  // 表示用のラベルを作成する
   const dueDateLabel = selectedDate
-    ? `${format(selectedDate, 'yyyy年MM月dd日', { locale: ja })} ${selectedHour}:${selectedMinute}`
+    ? isAllDay
+      ? `${format(selectedDate, 'yyyy年MM月dd日', { locale: ja })}（終日）`
+      : `${format(selectedDate, 'yyyy年MM月dd日', { locale: ja })} ${selectedHour}:${selectedMinute}`
     : ''
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,6 +49,7 @@ export function TaskForm({ onAdd, onClose }: Props) {
     setSelectedDate(undefined)
     setSelectedHour('23')
     setSelectedMinute('59')
+    setIsAllDay(false)
     onClose()
   }
 
@@ -107,40 +113,68 @@ export function TaskForm({ onAdd, onClose }: Props) {
               </div>
             )}
 
-            {/* 時刻選択（日付が選ばれたときだけ表示） */}
+            {/* 日付が選ばれたときだけ表示 */}
             {selectedDate && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>時刻：</span>
-                <select
-                  className="form-input"
-                  style={{ width: 'auto' }}
-                  value={selectedHour}
-                  onChange={e => setSelectedHour(e.target.value)}
-                >
-                  {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
-                    <option key={h} value={h}>{h}時</option>
-                  ))}
-                </select>
-                <select
-                  className="form-input"
-                  style={{ width: 'auto' }}
-                  value={selectedMinute}
-                  onChange={e => setSelectedMinute(e.target.value)}
-                >
-                  {['00', '15', '30', '45'].map(m => (
-                    <option key={m} value={m}>{m}分</option>
-                  ))}
-                </select>
-                {/* 日付クリアボタン */}
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  style={{ fontSize: '12px', padding: '4px 8px' }}
-                  onClick={() => setSelectedDate(undefined)}
-                >
-                  クリア
-                </button>
-              </div>
+              <>
+                {/* 終日チェックボックス */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+                  <input
+                    type="checkbox"
+                    id="isAllDay"
+                    checked={isAllDay}
+                    onChange={e => setIsAllDay(e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--accent-purple)' }}
+                  />
+                  <label
+                    htmlFor="isAllDay"
+                    style={{ fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                  >
+                    終日
+                  </label>
+                </div>
+
+                {/* 時刻選択（終日オフのときだけ表示） */}
+                {!isAllDay && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>時刻：</span>
+                    <select
+                      className="form-input"
+                      style={{ width: 'auto' }}
+                      value={selectedHour}
+                      onChange={e => setSelectedHour(e.target.value)}
+                    >
+                      {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                        <option key={h} value={h}>{h}時</option>
+                      ))}
+                    </select>
+                    <select
+                      className="form-input"
+                      style={{ width: 'auto' }}
+                      value={selectedMinute}
+                      onChange={e => setSelectedMinute(e.target.value)}
+                    >
+                      {['00', '15', '30', '45'].map(m => (
+                        <option key={m} value={m}>{m}分</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* クリアボタン */}
+                <div style={{ marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    style={{ fontSize: '12px', padding: '4px 8px' }}
+                    onClick={() => {
+                      setSelectedDate(undefined)
+                      setIsAllDay(false)
+                    }}
+                  >
+                    クリア
+                  </button>
+                </div>
+              </>
             )}
           </div>
 
