@@ -16,6 +16,23 @@ interface Props {
 
 export function TaskCard({ task, onComplete, onDelete }: Props) {
   const isOverdue = !task.is_done && !!task.due_date && new Date(task.due_date) < new Date()
+
+  const isAllDay = !!task.due_date &&
+    new Date(task.due_date).getHours() === 23 &&
+    new Date(task.due_date).getMinutes() === 59 &&
+    new Date(task.due_date).getSeconds() === 59
+
+  const dueDateText = task.due_date
+    ? isAllDay
+      ? new Date(task.due_date).toLocaleDateString('ja-JP', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+        }) + '（終日）'
+      : new Date(task.due_date).toLocaleString('ja-JP', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit',
+        })
+    : null
+
   return (
     <div className={`task-card${task.is_done ? ' done' : ''}${isOverdue ? ' overdue' : ''}`}>
       <button
@@ -34,9 +51,9 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
             {task.description}
           </p>
         )}
-        {task.due_date && (
+        {dueDateText && (
           <p style={{ fontSize: '12px', color: isOverdue ? 'var(--accent-red)' : 'var(--text-muted)', marginTop: '4px' }}>
-            期限: {new Date(task.due_date).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            期限: {dueDateText}
             {isOverdue && ' (期限切れ)'}
           </p>
         )}
