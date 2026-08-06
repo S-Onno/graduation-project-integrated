@@ -29,12 +29,28 @@ interface Toast {
   emoji: string
 }
 
+interface UserAnimal {
+  stage: string
+  task_count: number
+  animal: { name: string }
+}
+
+interface GrowthHint {
+  animalName: string
+  remaining: number
+}
+
+const STAGE_MAX: Record<string, number> = { BABY: 4, CHILD: 9, ADULT: 9 }
+
 export default function TasksPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [tasks, setTasks] = useState<Task[]>([])
   const [showForm, setShowForm] = useState(false)
   const [toast, setToast] = useState<Toast | null>(null)
+  const [growthHint, setGrowthHint] = useState<GrowthHint | null>(null)
+  const [pendingOpen, setPendingOpen] = useState(true)
+  const [doneOpen, setDoneOpen] = useState(true)
 
   const ikuseiRef = useRef<IkuseiHandle>(null)
 
@@ -47,7 +63,27 @@ export default function TasksPage() {
     if (res.ok) setTasks(await res.json())
   }, [])
 
-  useEffect(() => { if (session) fetchTasks() }, [session, fetchTasks])
+  const fetchGrowthHint = useCallback(async () => {
+    try {
+      const res = await fetch('/api/user-animals')
+      if (!res.ok) { setGrowthHint(null); return }
+      const animals: UserAnimal[] = await res.json()
+      const growing = animals.find(a => a.stage !== 'ADULT')
+      if (!growing) { setGrowthHint(null); return }
+      const remaining = STAGE_MAX[growing.stage] - growing.task_count
+      if (remaining <= 0) { setGrowthHint(null); return }
+      setGrowthHint({ animalName: growing.animal.name, remaining })
+    } catch {
+      setGrowthHint(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (session) {
+      fetchTasks()
+      fetchGrowthHint()
+    }
+  }, [session, fetchTasks, fetchGrowthHint])
 
   const showToast = (message: string, emoji: string) => {
     setToast({ message, emoji })
@@ -60,6 +96,7 @@ export default function TasksPage() {
     const data = await res.json()
 
     setTasks(prev => prev.map(t => t.id === id ? { ...t, is_done: true } : t))
+    fetchGrowthHint()
 
     if (ikuseiRef.current) {
       ikuseiRef.current.reload()
@@ -86,77 +123,110 @@ export default function TasksPage() {
     if (res.ok) setTasks(prev => prev.filter(t => t.id !== id))
   }
 
-  const handleAdd = async (title: string, description: string, dueDate: string) => {  // 変更
+  const handleAdd = async (title: string, description: string, dueDate: string) => {
     const res = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description, due_date: dueDate || null }),  // 変更
+      body: JSON.stringify({ title, description, due_date: dueDate || null }),
     })
     if (res.ok) fetchTasks()
   }
 
   const pending = tasks.filter(t => !t.is_done)
   const done = tasks.filter(t => t.is_done)
+  const progressPercent = tasks.length === 0 ? 0 : Math.round((done.length / tasks.length) * 100)
 
   if (status === 'loading') return null
 
   return (
-    <AppShell>
-      {/* 💡 【修正】余白（マージン）を排除し、タスクエリア:ゲームパネル＝約6:4 (col-span-7:col-span-5) に変更 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
+    <AppShell fullBleed>
+      <div className="tl-page">
+        {/* 💡 【修正】余白（マージン）を排除し、タスクエリア:ゲームパネル＝約6:4 (col-span-7:col-span-5) に変更 */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
 
-        {/* 左側：タスクパネル (.task-panel) - 約60%の幅 (7/12) */}
-        <div className="task-panel lg:col-span-7 space-y-6">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>タスク管理</h2>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                タスクを完了すると動物が育ちます 🐾
-              </p>
-            </div>
-            <button className="btn-primary" onClick={() => setShowForm(true)}>
-              ＋ 追加
-            </button>
-          </div>
-
-          {/* 未完了タスク */}
-          <div className="section-header" style={{ marginTop: '0' }}>
-            <h3>📋 未完了 ({pending.length})</h3>
-          </div>
-          {pending.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-              タスクはありません。右上の「＋ 追加」からタスクを作成してください。
-            </div>
-          ) : (
-            pending.map(task => (
-              <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} />
-            ))
-          )}
-
-          {/* 完了済みタスク */}
-          {done.length > 0 && (
-            <>
-              <div className="section-header">
-                <h3>✅ 完了済み ({done.length})</h3>
+          {/* 左側：タスクパネル (.task-panel) - 約60%の幅 (7/12) */}
+          <div className="task-panel lg:col-span-7">
+            <div className="tl-inner">
+              <div className="tl-header">
+                <div>
+                  <h2 className="tl-title">タスク管理</h2>
+                  <p className="tl-subtitle">タスクを完了すると動物が育ちます 🐾</p>
+                </div>
+                <button className="tl-add-btn" onClick={() => setShowForm(true)}>
+                  ＋ タスクを追加
+                </button>
               </div>
-              {done.map(task => (
-                <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} />
-              ))}
-            </>
-          )}
-        </div>
 
-        {/* 右側：ゲームパネル (.game-panel) - 横幅を従来の約1.3倍となる約40% (5/12) に拡大拡張 */}
-        <div className="lg:col-span-5 lg:sticky lg:top-6 w-full">
-          <IkuseiView ref={ikuseiRef} isEmbedded={true} />
-        </div>
+              {/* 今日の進捗 */}
+              <div className="tl-progress">
+                <div className="tl-progress-top">
+                  <span className="tl-progress-label">今日の進捗</span>
+                  <span className="tl-progress-count">{done.length} / {tasks.length} 完了</span>
+                </div>
+                <div className="tl-progress-track">
+                  <div className="tl-progress-fill" style={{ width: `${progressPercent}%` }} />
+                </div>
+                {growthHint && (
+                  <div className="tl-growth-hint">
+                    <span>🐾</span>
+                    <span>あと{growthHint.remaining}タスクで{growthHint.animalName}が成長します</span>
+                  </div>
+                )}
+              </div>
 
+              {/* 未完了タスク */}
+              <div className="tl-section">
+                <div className="tl-section-header" onClick={() => setPendingOpen(v => !v)}>
+                  <span className="tl-section-toggle">{pendingOpen ? '▼' : '▶'}</span>
+                  <span>未完了</span>
+                  <span className="tl-section-count">{pending.length}</span>
+                </div>
+                {pendingOpen && (
+                  pending.length === 0 ? (
+                    <div className="tl-empty">
+                      タスクはありません。右上の「＋ タスクを追加」から作成してください。
+                    </div>
+                  ) : (
+                    <div className="tl-list">
+                      {pending.map(task => (
+                        <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} />
+                      ))}
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* 完了済みタスク */}
+              {done.length > 0 && (
+                <div className="tl-section">
+                  <div className="tl-section-header" onClick={() => setDoneOpen(v => !v)}>
+                    <span className="tl-section-toggle">{doneOpen ? '▼' : '▶'}</span>
+                    <span>完了済み</span>
+                    <span className="tl-section-count">{done.length}</span>
+                  </div>
+                  {doneOpen && (
+                    <div className="tl-list">
+                      {done.map(task => (
+                        <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 右側：ゲームパネル (.game-panel) - 横幅を従来の約1.3倍となる約40% (5/12) に拡大拡張 */}
+          <div className="lg:col-span-5 lg:sticky lg:top-6 w-full">
+            <IkuseiView ref={ikuseiRef} isEmbedded={true} />
+          </div>
+        </div>
       </div>
 
       {showForm && <TaskForm onAdd={handleAdd} onClose={() => setShowForm(false)} />}
 
       {toast && (
-        <div className="toast">
+        <div className="tl-toast">
           {toast.emoji} {toast.message}
         </div>
       )}

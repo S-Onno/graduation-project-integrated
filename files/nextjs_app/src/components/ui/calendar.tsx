@@ -18,11 +18,12 @@ export function Calendar({
       {...props}
       style={{
         '--rdp-accent-color': '#6366f1',
-        '--rdp-background-color': '#252545',
-        '--rdp-accent-color-dark': '#818cf8',
-        '--rdp-background-color-dark': '#252545',
-        color: '#f1f5f9',
-        backgroundColor: '#1e1e36',
+        '--rdp-background-color': '#eef2ff',
+        '--rdp-accent-color-dark': '#4f46e5',
+        '--rdp-background-color-dark': '#eef2ff',
+        color: '#1f2937',
+        backgroundColor: '#ffffff',
+        border: '1px solid #e5e7eb',
         borderRadius: '12px',
         padding: '12px',
       } as React.CSSProperties}
@@ -31,6 +32,6 @@ export function Calendar({
 }
 
 // ja                   ← 日本語カレンダー（月・曜日が日本語になる）
-// --rdp-accent-color   ← 選択日の色を既存の紫（#6366f1）に合わせる
-// --rdp-background     ← 既存のダークテーマに合わせる
-// color / backgroundColor ← 既存の文字色・背景色に合わせる
+// --rdp-accent-color   ← 選択日の色をタスク画面の紫（#6366f1）に合わせる
+// --rdp-background     ← タスク画面のライトテーマに合わせる
+// color / backgroundColor ← タスク画面の文字色・背景色に合わせる
