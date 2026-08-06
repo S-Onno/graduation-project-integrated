@@ -34,34 +34,39 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
     : null
 
   return (
-    <div className={`task-card${task.is_done ? ' done' : ''}${isOverdue ? ' overdue' : ''}`}>
+    <div className={`tl-item${task.is_done ? ' done' : ''}`}>
       <button
-        className={`task-check${task.is_done ? ' checked' : ''}`}
+        className={`tl-checkbox${task.is_done ? ' checked' : ''}`}
         onClick={() => !task.is_done && onComplete(task.id)}
         disabled={task.is_done}
         aria-label="完了"
       >
-        {task.is_done ? '✓' : ''}
+        {task.is_done && (
+          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+            <path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
       </button>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p className="task-title" style={{ fontSize: '15px', fontWeight: 600 }}>{task.title}</p>
+      <div className="tl-item-content">
+        <p className="tl-item-title">{task.title}</p>
         {task.description && (
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {task.description}
-          </p>
+          <p className="tl-item-desc">{task.description}</p>
         )}
         {dueDateText && (
-          <p style={{ fontSize: '12px', color: isOverdue ? 'var(--accent-red)' : 'var(--text-muted)', marginTop: '4px' }}>
-            期限: {dueDateText}
-            {isOverdue && ' (期限切れ)'}
-          </p>
+          <div>
+            <span className={`tl-due-pill${isOverdue ? ' overdue' : ''}${isAllDay ? ' allday' : ''}`}>
+              {dueDateText}{isOverdue && '（期限切れ）'}
+            </span>
+          </div>
         )}
       </div>
 
       {!task.is_done && (
-        <button className="btn-danger" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={() => onDelete(task.id)}>
-          削除
+        <button className="tl-delete-btn" onClick={() => onDelete(task.id)} aria-label="削除">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0v13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       )}
     </div>

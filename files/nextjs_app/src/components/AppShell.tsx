@@ -10,7 +10,7 @@ const NAV = [
   { href: '/zoo',        label: '動物園',        icon: '🦁' },
 ]
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, fullBleed = false }: { children: React.ReactNode; fullBleed?: boolean }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
 
@@ -62,9 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="page-container">
-          <div className="page-inner">
-            {children}
-          </div>
+          {fullBleed ? children : <div className="page-inner">{children}</div>}
         </main>
       </div>
     </div>

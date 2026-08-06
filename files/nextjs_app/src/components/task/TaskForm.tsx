@@ -54,16 +54,16 @@ export function TaskForm({ onAdd, onClose }: Props) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+    <div className="tl-modal-overlay" onClick={onClose}>
+      <div className="tl-modal" onClick={e => e.stopPropagation()}>
         <h3>📋 新しいタスクを追加</h3>
         <form onSubmit={handleSubmit}>
 
           {/* タスク名 */}
-          <div className="form-group">
-            <label className="form-label">タスク名 *</label>
+          <div className="tl-group">
+            <label className="tl-label">タスク名 *</label>
             <input
-              className="form-input"
+              className="tl-input"
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="例: 数学の問題集を10問解く"
@@ -72,10 +72,10 @@ export function TaskForm({ onAdd, onClose }: Props) {
           </div>
 
           {/* メモ */}
-          <div className="form-group">
-            <label className="form-label">メモ（任意）</label>
+          <div className="tl-group">
+            <label className="tl-label">メモ（任意）</label>
             <textarea
-              className="form-input"
+              className="tl-input"
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="補足メモ"
@@ -85,14 +85,14 @@ export function TaskForm({ onAdd, onClose }: Props) {
           </div>
 
           {/* 期限日時 */}
-          <div className="form-group">
-            <label className="form-label">期限日時（任意）</label>
+          <div className="tl-group">
+            <label className="tl-label">期限日時（任意）</label>
 
             {/* 日付選択ボタン */}
             <button
               type="button"
-              className="form-input"
-              style={{ textAlign: 'left', cursor: 'pointer', color: selectedDate ? 'var(--text-primary)' : 'var(--text-muted)' }}
+              className="tl-input"
+              style={{ textAlign: 'left', cursor: 'pointer', color: selectedDate ? 'var(--zoo-text)' : 'var(--zoo-text-muted)' }}
               onClick={() => setShowCalendar(prev => !prev)}
             >
               {dueDateLabel || '📅 日付を選択'}
@@ -123,11 +123,11 @@ export function TaskForm({ onAdd, onClose }: Props) {
                     id="isAllDay"
                     checked={isAllDay}
                     onChange={e => setIsAllDay(e.target.checked)}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--accent-purple)' }}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--zoo-purple)' }}
                   />
                   <label
                     htmlFor="isAllDay"
-                    style={{ fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                    style={{ fontSize: '13px', color: 'var(--zoo-text-sub)', cursor: 'pointer' }}
                   >
                     終日
                   </label>
@@ -136,9 +136,9 @@ export function TaskForm({ onAdd, onClose }: Props) {
                 {/* 時刻選択（終日オフのときだけ表示） */}
                 {!isAllDay && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>時刻：</span>
+                    <span style={{ fontSize: '13px', color: 'var(--zoo-text-sub)' }}>時刻：</span>
                     <select
-                      className="form-input"
+                      className="tl-input"
                       style={{ width: 'auto' }}
                       value={selectedHour}
                       onChange={e => setSelectedHour(e.target.value)}
@@ -148,7 +148,7 @@ export function TaskForm({ onAdd, onClose }: Props) {
                       ))}
                     </select>
                     <select
-                      className="form-input"
+                      className="tl-input"
                       style={{ width: 'auto' }}
                       value={selectedMinute}
                       onChange={e => setSelectedMinute(e.target.value)}
@@ -164,7 +164,7 @@ export function TaskForm({ onAdd, onClose }: Props) {
                 <div style={{ marginTop: '8px' }}>
                   <button
                     type="button"
-                    className="btn-ghost"
+                    className="tl-btn-ghost"
                     style={{ fontSize: '12px', padding: '4px 8px' }}
                     onClick={() => {
                       setSelectedDate(undefined)
@@ -178,9 +178,9 @@ export function TaskForm({ onAdd, onClose }: Props) {
             )}
           </div>
 
-          <div className="modal-actions">
-            <button type="button" className="btn-ghost" onClick={onClose}>キャンセル</button>
-            <button type="submit" className="btn-primary" disabled={loading || !title.trim()}>
+          <div className="tl-modal-actions">
+            <button type="button" className="tl-btn-ghost" onClick={onClose}>キャンセル</button>
+            <button type="submit" className="tl-btn-primary" disabled={loading || !title.trim()}>
               {loading ? '追加中...' : '追加する'}
             </button>
           </div>
