@@ -2,9 +2,8 @@
 ---
 # [infrastructure-repo-iac-secure] roles/app/templates/app_docker-compose.yml.j2
 # =========================================================================
-# 🎓 卒業制作：Server B アプリケーション統合マニフェスト (100同時アクセス・ハイパフォーマンス版)
+# 🎓 卒業制作：Server B アプリケーション統合マニフェスト (Docker Compose V2最新適合版)
 # =========================================================================
-version: '3.8'
 
 networks:
   app_frontend_net:
@@ -44,7 +43,6 @@ services:
       NODE_ENV: "production"
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-      # ★デバッグ核心: DB接続プール数を50枠へ拡張 ＆ Nodeスレッドプール数を64へ拡張
       DATABASE_URL: 'postgresql://postgres:{{ vault_db_root_password | string | urlencode | replace("$", "$$") }}@postgres_db:5432/{{ db_name | default("app_db") }}?schema=public&connection_limit=50'
       NEXTAUTH_SECRET: '{{ vault_nextauth_secret | replace("$", "$$") }}'
       NEXTAUTH_URL: '{{ app_nextauth_url | default("http://10.149.245.115:8080") }}'
