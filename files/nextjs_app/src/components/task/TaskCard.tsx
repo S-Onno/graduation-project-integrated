@@ -5,7 +5,15 @@ interface Task {
   title: string
   description?: string | null
   due_date?: string | null
+  priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE'
   is_done: boolean
+}
+
+const PRIORITY_CLASS: Record<string, string> = {
+  HIGH: ' priority-high',
+  MEDIUM: ' priority-medium',
+  LOW: ' priority-low',
+  NONE: '',
 }
 
 interface Props {
@@ -34,7 +42,7 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
     : null
 
   return (
-    <div className={`tl-item${task.is_done ? ' done' : ''}`}>
+    <div className={`tl-item${task.is_done ? ' done' : ''}${PRIORITY_CLASS[task.priority] ?? ''}`}>
       <button
         className={`tl-checkbox${task.is_done ? ' checked' : ''}`}
         onClick={() => !task.is_done && onComplete(task.id)}
