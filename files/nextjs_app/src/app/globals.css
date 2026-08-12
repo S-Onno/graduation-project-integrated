@@ -218,8 +218,12 @@ body {
 .tl-item {
   background: transparent; border-radius: var(--zoo-radius);
   padding: 10px 12px; display: flex; align-items: flex-start; gap: 12px;
+  border-left: 3px solid transparent;
   transition: background 0.15s;
 }
+.tl-item.priority-high   { border-left-color: #dc2626; }
+.tl-item.priority-medium { border-left-color: #d97706; }
+.tl-item.priority-low    { border-left-color: #2563eb; }
 .tl-item:hover { background: var(--zoo-bg-hover); }
 .tl-item.done .tl-item-title { text-decoration: line-through; }
 .tl-item.done { opacity: 0.45; }
@@ -232,6 +236,10 @@ body {
 }
 .tl-checkbox:hover { border-color: var(--zoo-purple); }
 .tl-checkbox.checked { background: var(--zoo-teal); border-color: var(--zoo-teal); }
+/* 未完了時、チェックボックスのフチを優先度の色にする */
+.tl-item.priority-high .tl-checkbox:not(.checked)   { border-color: #dc2626; }
+.tl-item.priority-medium .tl-checkbox:not(.checked) { border-color: #d97706; }
+.tl-item.priority-low .tl-checkbox:not(.checked)    { border-color: #2563eb; }
 
 .tl-item-content { flex: 1; min-width: 0; }
 .tl-item-title { font-size: 14px; font-weight: 500; color: var(--zoo-text); }
@@ -277,6 +285,12 @@ body {
 }
 .tl-input:focus { border-color: var(--zoo-purple); }
 .tl-input::placeholder { color: var(--zoo-text-muted); }
+.tl-priority-btn {
+  padding: 4px 12px; border-radius: 99px; font-size: 12px;
+  border: 1px solid var(--zoo-border); background: transparent;
+  font-family: var(--font-main); cursor: pointer; transition: all 0.15s;
+}
+.tl-priority-btn.active { font-weight: 500; }
 .tl-modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
 .tl-btn-ghost {
   background: transparent; color: var(--zoo-text-sub); border: 1px solid var(--zoo-border);

@@ -6,8 +6,17 @@ import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
+type PriorityValue = 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE'
+
+const PRIORITY_OPTIONS: { value: PriorityValue; label: string; color: string; bg: string }[] = [
+  { value: 'NONE', label: 'なし', color: '#9ca3af', bg: '#f3f4f6' },
+  { value: 'HIGH', label: '高', color: '#dc2626', bg: '#fef2f2' },
+  { value: 'MEDIUM', label: '中', color: '#d97706', bg: '#fffbeb' },
+  { value: 'LOW', label: '低', color: '#2563eb', bg: '#eff6ff' },
+]
+
 interface Props {
-  onAdd: (title: string, description: string, dueDate: string) => Promise<void>
+  onAdd: (title: string, description: string, dueDate: string, priority: PriorityValue) => Promise<void>
   onClose: () => void
 }
 
@@ -19,6 +28,7 @@ export function TaskForm({ onAdd, onClose }: Props) {
   const [selectedMinute, setSelectedMinute] = useState('59')
   const [showCalendar, setShowCalendar] = useState(false)
   const [isAllDay, setIsAllDay] = useState(false)
+  const [priority, setPriority] = useState<PriorityValue>('NONE')
   const [loading, setLoading] = useState(false)
 
   const buildDueDate = (): string => {
@@ -42,7 +52,7 @@ export function TaskForm({ onAdd, onClose }: Props) {
     e.preventDefault()
     if (!title.trim()) return
     setLoading(true)
-    await onAdd(title.trim(), description.trim(), buildDueDate())
+    await onAdd(title.trim(), description.trim(), buildDueDate(), priority)
     setLoading(false)
     setTitle('')
     setDescription('')
@@ -50,6 +60,7 @@ export function TaskForm({ onAdd, onClose }: Props) {
     setSelectedHour('23')
     setSelectedMinute('59')
     setIsAllDay(false)
+    setPriority('NONE')
     onClose()
   }
 
@@ -82,6 +93,28 @@ export function TaskForm({ onAdd, onClose }: Props) {
               rows={3}
               style={{ resize: 'vertical' }}
             />
+          </div>
+
+          {/* 優先順位 */}
+          <div className="tl-group">
+            <label className="tl-label">優先順位（任意）</label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {PRIORITY_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`tl-priority-btn${priority === opt.value ? ' active' : ''}`}
+                  style={{
+                    color: opt.color,
+                    background: priority === opt.value ? opt.bg : 'transparent',
+                    borderColor: priority === opt.value ? opt.color : 'var(--zoo-border)',
+                  }}
+                  onClick={() => setPriority(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* 期限日時 */}

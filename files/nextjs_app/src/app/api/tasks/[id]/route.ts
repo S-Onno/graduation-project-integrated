@@ -3,12 +3,14 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+const VALID_PRIORITIES = ['HIGH', 'MEDIUM', 'LOW', 'NONE']
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { title, description, due_date } = await req.json()
+  const { title, description, due_date, priority } = await req.json()
 
   const task = await prisma.task.findUnique({ where: { id } })
   if (!task || task.userId !== session.user.id) {
@@ -29,12 +31,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  // priorityのバリデーション（未指定なら変更しない）
+  if (priority !== undefined && !VALID_PRIORITIES.includes(priority)) {
+    return NextResponse.json({ error: '優先順位の値が正しくありません' }, { status: 400 })
+  }
+
   const updated = await prisma.task.update({
     where: { id },
     data: {
       title,
       description,
       ...(dueDate !== undefined ? { due_date: dueDate } : {}),
+      ...(priority !== undefined ? { priority } : {}),
     },
   })
   return NextResponse.json(updated)
