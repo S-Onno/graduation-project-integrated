@@ -15,20 +15,39 @@ const PRIORITY_OPTIONS: { value: PriorityValue; label: string; color: string; bg
   { value: 'LOW', label: '低', color: '#2563eb', bg: '#eff6ff' },
 ]
 
+export interface EditingTask {
+  id: string
+  title: string
+  description?: string | null
+  due_date?: string | null
+  priority: PriorityValue
+}
+
 interface Props {
-  onAdd: (title: string, description: string, dueDate: string, priority: PriorityValue) => Promise<void>
+  // 追加モード
+  onAdd?: (title: string, description: string, dueDate: string, priority: PriorityValue) => Promise<void>
+  // 編集モード
+  onEdit?: (title: string, description: string, dueDate: string, priority: PriorityValue) => Promise<void>
+  // 編集対象タスク（編集モード時に渡す）
+  editingTask?: EditingTask
   onClose: () => void
 }
 
-export function TaskForm({ onAdd, onClose }: Props) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
-  const [selectedHour, setSelectedHour] = useState('23')
-  const [selectedMinute, setSelectedMinute] = useState('59')
+export function TaskForm({ onAdd, onEdit, editingTask, onClose }: Props) {
+  const isEditing = !!editingTask
+
+  const initialDate = editingTask?.due_date ? new Date(editingTask.due_date) : undefined
+  const initialIsAllDay = !!editingTask?.due_date &&
+    initialDate!.getHours() === 23 && initialDate!.getMinutes() === 59 && initialDate!.getSeconds() === 59
+
+  const [title, setTitle] = useState(editingTask?.title ?? '')
+  const [description, setDescription] = useState(editingTask?.description ?? '')
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate)
+  const [selectedHour, setSelectedHour] = useState(initialIsAllDay || !initialDate ? '23' : String(initialDate.getHours()).padStart(2, '0'))
+  const [selectedMinute, setSelectedMinute] = useState(initialIsAllDay || !initialDate ? '59' : String(initialDate.getMinutes()).padStart(2, '0'))
   const [showCalendar, setShowCalendar] = useState(false)
-  const [isAllDay, setIsAllDay] = useState(false)
-  const [priority, setPriority] = useState<PriorityValue>('NONE')
+  const [isAllDay, setIsAllDay] = useState(initialIsAllDay)
+  const [priority, setPriority] = useState<PriorityValue>(editingTask?.priority ?? 'NONE')
   const [loading, setLoading] = useState(false)
 
   const buildDueDate = (): string => {
@@ -52,22 +71,26 @@ export function TaskForm({ onAdd, onClose }: Props) {
     e.preventDefault()
     if (!title.trim()) return
     setLoading(true)
-    await onAdd(title.trim(), description.trim(), buildDueDate(), priority)
+    if (isEditing) {
+      await onEdit?.(title.trim(), description.trim(), buildDueDate(), priority)
+    } else {
+      await onAdd?.(title.trim(), description.trim(), buildDueDate(), priority)
+      setTitle('')
+      setDescription('')
+      setSelectedDate(undefined)
+      setSelectedHour('23')
+      setSelectedMinute('59')
+      setIsAllDay(false)
+      setPriority('NONE')
+    }
     setLoading(false)
-    setTitle('')
-    setDescription('')
-    setSelectedDate(undefined)
-    setSelectedHour('23')
-    setSelectedMinute('59')
-    setIsAllDay(false)
-    setPriority('NONE')
     onClose()
   }
 
   return (
     <div className="tl-modal-overlay" onClick={onClose}>
       <div className="tl-modal" onClick={e => e.stopPropagation()}>
-        <h3>📋 新しいタスクを追加</h3>
+        <h3>{isEditing ? '✏️ タスクを編集' : '📋 新しいタスクを追加'}</h3>
         <form onSubmit={handleSubmit}>
 
           {/* タスク名 */}
@@ -214,7 +237,7 @@ export function TaskForm({ onAdd, onClose }: Props) {
           <div className="tl-modal-actions">
             <button type="button" className="tl-btn-ghost" onClick={onClose}>キャンセル</button>
             <button type="submit" className="tl-btn-primary" disabled={loading || !title.trim()}>
-              {loading ? '追加中...' : '追加する'}
+              {loading ? (isEditing ? '保存中...' : '追加中...') : (isEditing ? '保存する' : '追加する')}
             </button>
           </div>
         </form>

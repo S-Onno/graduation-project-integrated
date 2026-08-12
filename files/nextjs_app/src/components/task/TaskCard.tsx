@@ -7,6 +7,7 @@ interface Task {
   due_date?: string | null
   priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE'
   is_done: boolean
+  created_at: string
 }
 
 const PRIORITY_CLASS: Record<string, string> = {
@@ -20,9 +21,10 @@ interface Props {
   task: Task
   onComplete: (id: string) => void
   onDelete: (id: string) => void
+  onEdit: (task: Task) => void
 }
 
-export function TaskCard({ task, onComplete, onDelete }: Props) {
+export function TaskCard({ task, onComplete, onDelete, onEdit }: Props) {
   const isOverdue = !task.is_done && !!task.due_date && new Date(task.due_date) < new Date()
 
   const isAllDay = !!task.due_date &&
@@ -70,13 +72,20 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
         )}
       </div>
 
-      {!task.is_done && (
-        <button className="tl-delete-btn" onClick={() => onDelete(task.id)} aria-label="削除">
+      <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+        <button className="tl-delete-btn" onClick={() => onEdit(task)} aria-label="編集">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-            <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0v13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-      )}
+        {!task.is_done && (
+          <button className="tl-delete-btn" onClick={() => onDelete(task.id)} aria-label="削除">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0v13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
+      </div>
     </div>
   )
 }
