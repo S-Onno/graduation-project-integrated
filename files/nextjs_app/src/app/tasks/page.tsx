@@ -50,6 +50,7 @@ export default function TasksPage() {
   const router = useRouter()
   const [tasks, setTasks] = useState<Task[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
   const [growthHint, setGrowthHint] = useState<GrowthHint | null>(null)
   const [pendingOpen, setPendingOpen] = useState(true)
@@ -135,6 +136,23 @@ export default function TasksPage() {
     if (res.ok) fetchTasks()
   }
 
+  const handleEditOpen = (task: Task) => {
+    setEditingTask(task)
+  }
+
+  const handleEdit = async (title: string, description: string, dueDate: string, priority: PriorityValue) => {
+    if (!editingTask) return
+    const res = await fetch(`/api/tasks/${editingTask.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description, due_date: dueDate || null, priority }),
+    })
+    if (res.ok) {
+      fetchTasks()
+      setEditingTask(null)
+    }
+  }
+
   const pending = tasks.filter(t => !t.is_done)
   const done = tasks.filter(t => t.is_done)
   const progressPercent = tasks.length === 0 ? 0 : Math.round((done.length / tasks.length) * 100)
@@ -192,7 +210,7 @@ export default function TasksPage() {
                   ) : (
                     <div className="tl-list">
                       {pending.map(task => (
-                        <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} />
+                        <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} onEdit={handleEditOpen} />
                       ))}
                     </div>
                   )
@@ -210,7 +228,7 @@ export default function TasksPage() {
                   {doneOpen && (
                     <div className="tl-list">
                       {done.map(task => (
-                        <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} />
+                        <TaskCard key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} onEdit={handleEditOpen} />
                       ))}
                     </div>
                   )}
@@ -227,6 +245,14 @@ export default function TasksPage() {
       </div>
 
       {showForm && <TaskForm onAdd={handleAdd} onClose={() => setShowForm(false)} />}
+
+      {editingTask && (
+        <TaskForm
+          editingTask={editingTask}
+          onEdit={handleEdit}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
 
       {toast && (
         <div className="tl-toast">
