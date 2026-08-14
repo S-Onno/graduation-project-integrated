@@ -102,6 +102,20 @@ body {
 .nav-item:hover { background: var(--zoo-bg-sub); }
 .nav-item.active { background: var(--zoo-purple-bg); color: var(--zoo-purple); border-left: 3px solid var(--zoo-purple); }
 
+/* タスク系ナビとゲーム系（動物園）ナビを視覚的に区切るセクション */
+.sidebar-zoo-section { padding: 12px; border-top: 1px solid var(--zoo-border); }
+.sidebar-zoo-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-radius: 12px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 1px solid #fcd34d;
+  color: #92400e; font-size: 15px; font-weight: 700;
+  text-decoration: none; transition: all 0.2s;
+}
+.sidebar-zoo-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(217,119,6,0.25); }
+.sidebar-zoo-btn.active { background: linear-gradient(135deg, #fde68a, #fbbf24); border-color: #f59e0b; }
+.sidebar-zoo-icon { font-size: 24px; line-height: 1; }
+
 .topbar {
   height: 64px; background: var(--zoo-bg);
   border-bottom: 1px solid var(--zoo-border);
