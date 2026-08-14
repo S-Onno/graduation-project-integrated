@@ -198,22 +198,6 @@ body {
 }
 .tl-add-btn:hover { background: var(--zoo-purple-light); }
 
-/* 進捗エリア */
-.tl-progress {
-  background: var(--zoo-bg); border: 1px solid var(--zoo-border);
-  border-radius: 12px; padding: 16px; margin-bottom: 24px;
-}
-.tl-progress-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.tl-progress-label { font-size: 12px; color: var(--zoo-text-sub); }
-.tl-progress-count { font-size: 12px; font-weight: 500; color: var(--zoo-purple); }
-.tl-progress-track { background: var(--zoo-border); height: 6px; border-radius: 99px; overflow: hidden; }
-.tl-progress-fill { background: var(--zoo-purple); height: 100%; border-radius: 99px; transition: width 0.4s ease; }
-.tl-growth-hint {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--zoo-purple-bg); border-radius: 6px; padding: 6px 10px;
-  font-size: 12px; color: var(--zoo-purple); margin-top: 10px;
-}
-
 /* セクション */
 .tl-section { margin-bottom: 8px; }
 .tl-section-header {

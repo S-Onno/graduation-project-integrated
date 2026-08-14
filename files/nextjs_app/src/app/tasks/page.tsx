@@ -32,19 +32,6 @@ interface Toast {
   emoji: string
 }
 
-interface UserAnimal {
-  stage: string
-  task_count: number
-  animal: { name: string }
-}
-
-interface GrowthHint {
-  animalName: string
-  remaining: number
-}
-
-const STAGE_MAX: Record<string, number> = { BABY: 4, CHILD: 9, ADULT: 9 }
-
 export default function TasksPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -52,7 +39,6 @@ export default function TasksPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
-  const [growthHint, setGrowthHint] = useState<GrowthHint | null>(null)
   const [pendingOpen, setPendingOpen] = useState(true)
   const [doneOpen, setDoneOpen] = useState(true)
 
@@ -67,27 +53,11 @@ export default function TasksPage() {
     if (res.ok) setTasks(await res.json())
   }, [])
 
-  const fetchGrowthHint = useCallback(async () => {
-    try {
-      const res = await fetch('/api/user-animals')
-      if (!res.ok) { setGrowthHint(null); return }
-      const animals: UserAnimal[] = await res.json()
-      const growing = animals.find(a => a.stage !== 'ADULT')
-      if (!growing) { setGrowthHint(null); return }
-      const remaining = STAGE_MAX[growing.stage] - growing.task_count
-      if (remaining <= 0) { setGrowthHint(null); return }
-      setGrowthHint({ animalName: growing.animal.name, remaining })
-    } catch {
-      setGrowthHint(null)
-    }
-  }, [])
-
   useEffect(() => {
     if (session) {
       fetchTasks()
-      fetchGrowthHint()
     }
-  }, [session, fetchTasks, fetchGrowthHint])
+  }, [session, fetchTasks])
 
   const showToast = (message: string, emoji: string) => {
     setToast({ message, emoji })
@@ -100,7 +70,6 @@ export default function TasksPage() {
     const data = await res.json()
 
     setTasks(prev => prev.map(t => t.id === id ? { ...t, is_done: true } : t))
-    fetchGrowthHint()
 
     if (ikuseiRef.current) {
       ikuseiRef.current.reload()
@@ -155,7 +124,6 @@ export default function TasksPage() {
 
   const pending = tasks.filter(t => !t.is_done)
   const done = tasks.filter(t => t.is_done)
-  const progressPercent = tasks.length === 0 ? 0 : Math.round((done.length / tasks.length) * 100)
 
   if (status === 'loading') return null
 
@@ -176,23 +144,6 @@ export default function TasksPage() {
                 <button className="tl-add-btn" onClick={() => setShowForm(true)}>
                   ＋ タスクを追加
                 </button>
-              </div>
-
-              {/* 今日の進捗 */}
-              <div className="tl-progress">
-                <div className="tl-progress-top">
-                  <span className="tl-progress-label">今日の進捗</span>
-                  <span className="tl-progress-count">{done.length} / {tasks.length} 完了</span>
-                </div>
-                <div className="tl-progress-track">
-                  <div className="tl-progress-fill" style={{ width: `${progressPercent}%` }} />
-                </div>
-                {growthHint && (
-                  <div className="tl-growth-hint">
-                    <span>🐾</span>
-                    <span>あと{growthHint.remaining}タスクで{growthHint.animalName}が成長します</span>
-                  </div>
-                )}
               </div>
 
               {/* 未完了タスク */}
