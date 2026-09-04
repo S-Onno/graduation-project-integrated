@@ -41,7 +41,7 @@ https://app.notion.com/p/_-36b8ff38ca3980a6a0f7fb2f59dfde6d?source=copy_link
 
 
 ## 前提条件
-
+- app/files/nextjs_app/ 配下のみ `編集可`
 - Node.js 22 系 / npm
 - Docker / Docker Compose v2
 - Git
