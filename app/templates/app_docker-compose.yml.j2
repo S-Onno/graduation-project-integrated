@@ -13,9 +13,11 @@ networks:
 
 services:
   web_server:
-    image: {{ nginx_base_image | default('nginx:1.25-alpine') }}
+    image: {{ nginx_base_image | default('nginx:' + (version_image_nginx | default('1.25-alpine'))) }}
     container_name: web_server
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "{{ app_web_port | default(8080) }}:80"
     volumes:
@@ -25,6 +27,11 @@ services:
         condition: service_started
     networks:
       - app_frontend_net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "512M"
     logging:
       driver: "json-file"
       options:
@@ -35,17 +42,17 @@ services:
     build:
       context: {{ app_base_dir | default('/opt/app') }}/nextjs_app
       dockerfile: Dockerfile
-      args:
-        DATABASE_URL: 'postgresql://postgres:{{ vault_db_root_password | string | urlencode | replace("$", "$$") }}@postgres_db:5432/{{ db_name | default("app_db") }}?schema=public&connection_limit=50'
     container_name: nextjs_app
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       NODE_ENV: "production"
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-      DATABASE_URL: 'postgresql://postgres:{{ vault_db_root_password | string | urlencode | replace("$", "$$") }}@postgres_db:5432/{{ db_name | default("app_db") }}?schema=public&connection_limit=50'
-      NEXTAUTH_SECRET: '{{ vault_nextauth_secret | replace("$", "$$") }}'
-      NEXTAUTH_URL: '{{ app_nextauth_url | default("http://10.149.245.115:8080") }}'
+      DATABASE_URL: 'postgresql://postgres:{{ vault_db_root_password | default("Pg_RoOt_sEcUrE_83d9a1f7c5e2b460") | string | urlencode | replace("$", "$$") }}@postgres_db:5432/{{ db_name | default("app_db") }}?schema=public&connection_limit=50'
+      NEXTAUTH_SECRET: '{{ vault_nextauth_secret | default("NxAt_SeCrEt_sEcUrE_51d6c8b2e9a4f370") | replace("$", "$$") }}'
+      NEXTAUTH_URL: '{% if app_nextauth_url is defined and app_nextauth_url %}{{ app_nextauth_url }}{% elif app_domain is defined and app_domain %}https://{{ app_domain }}{% else %}http://{{ hostvars["server-b"]["internal_ip"] | default(hostvars["server-b"]["ansible_host"] | default("10.149.245.115")) }}:{{ app_web_port | default(8080) }}{% endif %}'
       UV_THREADPOOL_SIZE: "64"
     depends_on:
       postgres_db:
@@ -65,15 +72,15 @@ services:
         max-file: "{{ docker_log_max_file | default('3') }}"
 
   postgres_db:
-    image: "postgres:{{ app_pg_version | default('16-alpine') }}"
+    image: "postgres:{{ version_image_postgres_app | default('16-alpine') }}"
     container_name: postgres_db
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: 'postgres'
-      POSTGRES_PASSWORD: '{{ vault_db_root_password | replace("$", "$$") }}'
+      POSTGRES_PASSWORD: '{{ vault_db_root_password | default("Pg_RoOt_sEcUrE_83d9a1f7c5e2b460") | replace("$", "$$") }}'
       POSTGRES_DB: '{{ db_name | default("app_db") }}'
-    ports:
-      - "5432:5432"
     command: postgres -c max_connections={{ app_pg_max_connections | default(300) }} -c shared_buffers=256MB
     volumes:
       - {{ app_pg_data_path | default('/opt/app/postgres_data') }}:/var/lib/postgresql/data:Z

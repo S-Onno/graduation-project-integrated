@@ -1,0 +1,173 @@
+# 冪等性・ハングアップ・SELinux完全対策版
+---
+# [infrastructure-repo-iac-secure] roles/app/tasks/main.yml
+# =========================================================================
+# 🎓 卒業制作: Server B アプリ基盤＆高パフォーマンスIaCマスタータスク
+# =========================================================================
+
+# -----------------------------------------------------------------
+# 1. 【カーネルチューニング】バースト接続を受け止めるOSソケット拡張
+# -----------------------------------------------------------------
+- name: "app : [カーネル調整] 同時アクセスを受け止めるソケットバックログの拡張"
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value | string }}"
+    state: present
+    reload: true
+  loop:
+    - { name: 'net.core.somaxconn', value: "{{ sysctl_somaxconn | default(2048) }}" }
+    - { name: 'net.ipv4.tcp_max_syn_backlog', value: "{{ sysctl_tcp_max_syn_backlog | default(2048) }}" }
+    - { name: 'net.core.netdev_max_backlog', value: "{{ sysctl_netdev_max_backlog | default(2048) }}" }
+
+# -----------------------------------------------------------------
+# 2. ディレクトリ構造整備 ＆ SELinux事前防御
+# -----------------------------------------------------------------
+- name: "app : [ディレクトリ作成] Docker Compose展開用ベースディレクトリの生成"
+  ansible.builtin.file:
+    path: "{{ app_base_dir | default('/opt/app') }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: "app : [ディレクトリ作成] PostgreSQLデータ保存用ディレクトリの作成"
+  ansible.builtin.file:
+    path: "{{ app_pg_data_path | default('/opt/app/postgres_data') }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+    setype: container_file_t
+
+- name: "app : [ディレクトリ作成] アプリソース展開先階層の生成"
+  ansible.builtin.file:
+    path: "{{ app_base_dir | default('/opt/app') }}/nextjs_app"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+# -----------------------------------------------------------------
+# 3. アセット配布 ＆ 設定同期 (シークレット保護)
+# -----------------------------------------------------------------
+- name: "app : [アセット配布: Local] 司令塔のソースコード・設定アセットをServer Bへ配布"
+  ansible.builtin.copy:
+    src: "nextjs_app/"
+    dest: "{{ app_base_dir | default('/opt/app') }}/nextjs_app/"
+    mode: '0644'
+    directory_mode: '0755'
+  register: app_source_update_local
+  when: app_source_method | default('local') == 'local'
+
+- name: "app : [アセット配布: Git] GitHubリポジトリからNext.jsアプリソースを取得"
+  ansible.builtin.git:
+    repo: "{{ app_git_repo | default('https://github.com/S-Onno/graduation-project-integrated.git') }}"
+    dest: "{{ app_base_dir | default('/opt/app') }}/nextjs_app"
+    version: "{{ app_git_version | default('main') }}"
+    force: true
+  register: app_source_update_git
+  when: app_source_method | default('local') == 'git'
+
+- name: "app : [更新フラグ統合] アプリソース更新状態の確定"
+  ansible.builtin.set_fact:
+    app_source_changed: "{{ (app_source_update_local.changed | default(false)) or (app_source_update_git.changed | default(false)) }}"
+
+- name: "app : [設定配布] Nginx設定ファイルをServer Bへ同期配布"
+  ansible.builtin.template:
+    src: "nginx.conf.j2"
+    dest: "{{ app_base_dir | default('/opt/app') }}/nginx.conf"
+    mode: '0644'
+  register: app_nginx_conf_update
+
+- name: "app : [テンプレート配布] Docker Compose 定義ファイルの安全配置"
+  ansible.builtin.template:
+    src: app_docker-compose.yml.j2
+    dest: "{{ app_base_dir | default('/opt/app') }}/docker-compose.yml"
+    mode: '0600'
+  no_log: true
+  register: compose_manifest
+
+- name: "app : [SELinuxポリシー] アプリ・DB領域のコンテキスト定義をSELinuxへ事前登録"
+  community.general.sefcontext:
+    target: "{{ app_base_dir | default('/opt/app') }}(/.*)?"
+    setype: container_file_t
+    state: present
+  register: app_sefcontext_res
+
+- name: "app : [SELinux適用] 登録されたコンテキストを実ファイル群へ安全に反映"
+  ansible.builtin.command: "restorecon -R {{ app_base_dir | default('/opt/app') }}"
+  register: app_restorecon_res
+  when: app_sefcontext_res.changed | default(false)
+  changed_when: '"Relabeled" in app_restorecon_res.stdout'
+
+# -----------------------------------------------------------------
+# 4. コンテナ一括デプロイ ＆ ヘルスチェック検証
+# -----------------------------------------------------------------
+- name: "app : [ベース取得] Next.js ビルド用ベースイメージ (node:22-alpine) の事前取得 (リトライ付)"
+  ansible.builtin.command:
+    cmd: "docker pull node:22-alpine"
+  register: node_pull_res
+  until: node_pull_res is not failed
+  retries: 5
+  delay: 6
+  changed_when: '"Downloaded newer image" in node_pull_res.stdout or "Pull complete" in node_pull_res.stdout'
+
+- name: "app : [Composeビルド] Next.js アプリケーションイメージのビルド (リトライ保証)"
+  ansible.builtin.command:
+    cmd: "docker compose build"
+    chdir: "{{ app_base_dir | default('/opt/app') }}"
+  environment:
+    DOCKER_BUILDKIT: "1"
+    COMPOSE_DOCKER_CLI_BUILD: "1"
+  register: app_build_res
+  until: app_build_res is not failed
+  retries: 5
+  delay: 10
+  changed_when: '"writing image" in app_build_res.stderr or "naming to" in app_build_res.stderr or app_source_changed | default(false)'
+
+- name: "app : [Composeデプロイ] Next.js ＆ PostgreSQL バックグラウンド起動"
+  ansible.builtin.command:
+    cmd: "docker compose up -d --remove-orphans"
+    chdir: "{{ app_base_dir | default('/opt/app') }}"
+  register: app_compose_res
+  changed_when: '"Started" in app_compose_res.stdout or "Created" in app_compose_res.stdout or "Recreated" in app_compose_res.stdout or "Started" in app_compose_res.stderr or "Created" in app_compose_res.stderr or "Recreated" in app_compose_res.stderr'
+
+- name: "app : [健全性待機] postgres_db の内部初期化完了（Healthy状態）を検知"
+  ansible.builtin.command:
+    cmd: "docker inspect --format {% raw %}'{{.State.Health.Status}}'{% endraw %} postgres_db"
+  register: db_health_cmd
+  until: db_health_cmd.stdout == "healthy"
+  retries: 30
+  delay: 2
+  changed_when: false
+  check_mode: false
+
+- name: "app : [健全性待機] nextjs_app コンテナの稼働開始（running状態）を検知"
+  ansible.builtin.command:
+    cmd: "docker inspect --format {% raw %}'{{.State.Status}}'{% endraw %} nextjs_app"
+  register: nextjs_status_cmd
+  until: nextjs_status_cmd.stdout == "running"
+  retries: 20
+  delay: 1
+  changed_when: false
+  check_mode: false
+
+- name: "app : [ウォームアップ待機] Webプロキシの疎通準備完了を確認"
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ app_web_port | default(8080) }}"
+    state: started
+    delay: 0
+    timeout: 30
+
+- name: "app : [ウォームアップ実行] 初回アクセス時のコールドスタート遅延を事前キャッシュ化"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ app_web_port | default(8080) }}/"
+    method: GET
+    status_code: [200, 301, 302, 307]
+  register: warmup_result
+  until: warmup_result.status in [200, 301, 302, 307]
+  retries: 15
+  delay: 2
+  changed_when: false
+  check_mode: false

@@ -1,15 +1,27 @@
 # ==============================================================================
-# 🎓 卒業制作インフラ基盤：手動検証環境専用 .gitignore
-# [機密情報の流出防止 ＆ 巨大バイナリデータの追跡除外]
+# 卒業制作：リポジトリルート .gitignore
 # ==============================================================================
 
-# 1. データベース実データの追跡除外（Gitの肥大化とパーミッション不整合を防止）
-templates/postgres_db_data/
+# 1. データベース実データの追跡除外
+app/templates/postgres_db_data/
+**/postgres_db_data/
 
-# 2. ローカル検証用環境変数の除外（本番パスワード・シークレットの流出防止）
-templates/.env
+# 2. 環境変数実ファイル（シークレット）の除外（.example は残す）
+app/templates/.env
+app/files/nextjs_app/.env
+app/files/nextjs_app/.env.local
+app/files/nextjs_app/.env.*.local
 
-# 3. OSやエディタの自動生成ゴミファイルの除外
+# 3. Node.js / Next.js ビルド生成物
+app/files/nextjs_app/node_modules/
+app/files/nextjs_app/.next/
+app/files/nextjs_app/out/
+app/files/nextjs_app/src/generated/
+app/files/nextjs_app/tsconfig.tsbuildinfo
+
+# 4. OS・エディタ関連
 .DS_Store
 Thumbs.db
 *.log
+.vscode/
+.idea/

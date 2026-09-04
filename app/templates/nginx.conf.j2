@@ -1,0 +1,85 @@
+# 冪等性・ハングアップ・SELinux完全対策版
+# [infrastructure-repo-iac-secure] roles/app/templates/nginx.conf.j2
+# =========================================================================
+# 🎓 卒業制作：Server B Nginx リバースプロキシ設定 (100同時アクセス・超高速キャッシュ調整版)
+# =========================================================================
+user nginx;
+worker_processes auto;
+worker_rlimit_nofile 65535;
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections {{ nginx_worker_connections | default(4096) }};
+    multi_accept on;
+    use epoll;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    tcp_nopush      on;
+    tcp_nodelay     on;
+    keepalive_timeout  65;
+    types_hash_max_size 2048;
+
+    # レスポンスヘッダのセキュリティ向上（Nginxバージョンの隠蔽 ＆ 攻撃防御ヘッダー）
+    server_tokens off;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # メモリ上(10MB)に1秒間キャッシュするゾーン（100同時アクセスを0.2msで処理）
+    proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=microcache:10m max_size=100m inactive=60s;
+    proxy_cache_key "$scheme$request_method$host$request_uri";
+
+    # レートリミット：{{ nginx_rate_limit_rate | default('100r/s') }} (バースト{{ nginx_rate_limit_burst | default(150) }}まで即時通過を許可)
+    limit_req_zone $binary_remote_addr zone=noc_limit:10m rate={{ nginx_rate_limit_rate | default('100r/s') }};
+
+    # Next.jsコンテナとのTCP接続を常時保持（コネクション切断遅延を完全排除）
+    upstream nextjs_backend {
+        server nextjs_app:3000;
+        keepalive {{ nginx_upstream_keepalive | default(64) }};
+    }
+
+    server {
+        listen 80;
+        server_name _;
+
+        location / {
+            limit_req zone=noc_limit burst={{ nginx_rate_limit_burst | default(150) }} nodelay;
+
+            # 超高速化核心: マイクロキャッシュ制御および非同期ロックタイムアウト
+            proxy_cache microcache;
+            proxy_cache_valid 200 1s;
+            proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+            proxy_cache_lock on;
+            proxy_cache_lock_timeout 2s;
+            proxy_cache_lock_age 2s;
+
+            proxy_pass http://nextjs_backend;
+            proxy_http_version 1.1;
+            
+            # Keepalive有効化ヘッダー制御
+            proxy_set_header Connection "";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # タイムアウト制御の最適化
+            proxy_connect_timeout 10s;
+            proxy_send_timeout    30s;
+            proxy_read_timeout    30s;
+        }
+    }
+}

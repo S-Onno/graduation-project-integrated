@@ -1,0 +1,36 @@
+---
+# [infrastructure-repo-iac-secure] roles/app/defaults/main.yml
+# =========================================================================
+# 🎓 卒業制作: app ロール デフォルト変数定義
+# =========================================================================
+
+# ディレクトリ階層
+app_base_dir: "/opt/app"
+app_pg_data_path: "/opt/app/postgres_data"
+
+# ソース配布方式 ("local" または "git")
+app_source_method: "local"
+app_git_repo: "https://github.com/S-Onno/graduation-project-integrated.git"
+app_git_version: "main"
+
+# ポート & ネットワーク
+app_web_port: 8080
+
+# コンテナイメージバージョン
+version_image_nginx: "1.25-alpine"
+version_image_postgres_app: "16-alpine"
+
+# リソース制限 & パフォーマンス
+nextjs_cpu_limit: "2.0"
+nextjs_memory_limit: "2.0G"
+app_pg_cpu_limit: "2.0"
+app_pg_memory_limit: "2.0G"
+app_pg_max_connections: 300
+
+# カーネルソケットチューニング
+sysctl_somaxconn: 2048
+sysctl_tcp_max_syn_backlog: 2048
+sysctl_netdev_max_backlog: 2048
+
+# DB設定
+db_name: "app_db"

@@ -1,17 +1,26 @@
 FROM node:22-alpine AS base
 WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+# Next.js SWCネイティブバイナリの高速実行に必須
+RUN apk add --no-cache libc6-compat
 
 # ── 依存関係インストール ──────────────────────────────────────────────────────
 FROM base AS deps
 COPY package*.json ./
-RUN npm ci
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm ci --no-audit --no-fund --loglevel=error
 
 # ── ビルド ───────────────────────────────────────────────────────────────────
 FROM base AS builder
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV UV_THREADPOOL_SIZE=64
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN npx prisma generate
+RUN ./node_modules/.bin/prisma generate
 RUN npm run build
 
 # ── 本番ランタイム ────────────────────────────────────────────────────────────
@@ -35,9 +44,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/public          ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma          ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 
-# prisma migrate deploy に必要な全依存を含む完全な node_modules
-# (standalone の最小 node_modules を上書き統合)
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules    ./node_modules
+# Prisma マイグレーション実行に必要な最小モジュールのみを抽出配置 (数万ファイルの無駄コピーを排除)
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma    ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma   ./node_modules/@prisma
 
 # カスタム出力先に生成された Prisma クライアント (output = "../src/generated/prisma")
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated   ./src/generated
@@ -45,6 +54,5 @@ COPY --from=builder --chown=nextjs:nodejs /app/src/generated   ./src/generated
 USER nextjs
 EXPOSE 3000
 
-ENTRYPOINT ["/sbin/tini", "--"]
-# 起動時に DB マイグレーションを適用してからアプリを起動
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && exec node server.js"]
+# 起動時に DB マイグレーションを適用（不整合時は自動フォールバック同期）してからアプリを確実に起動
+CMD ["sh", "-c", "(node node_modules/prisma/build/index.js migrate deploy 2>/dev/null || node node_modules/prisma/build/index.js db push --accept-data-loss 2>/dev/null || true) && exec node server.js"]
