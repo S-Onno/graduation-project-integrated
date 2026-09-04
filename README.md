@@ -17,18 +17,26 @@
 ## ディレクトリ構成
 
 ```
-graduation-project-docker-create/
-├── files/
-│   ├── nextjs_app/        # Next.js アプリ本体
-│   └── nginx.conf         # Nginx リバースプロキシ設定
-├── templates/
-│   ├── app_docker-compose.yml      # Docker Compose 定義
-│   ├── app_docker-compose.yml.j2   # Ansible 用テンプレート
-│   ├── .env.example                # Compose 用環境変数テンプレート
-│   └── postgres_db_data/           # DB実データ（git管理外）
-└── .gitignore
+graduation-project-integrated/
+├── app/                            # Ansible Role (roles/app) 対応ディレクトリ
+│   ├── defaults/                   # Ansible デフォルト変数定義
+│   │   └── main.yml
+│   ├── files/                      # 静的配布ファイル群
+│   │   ├── nextjs_app/             # ★ Next.js アプリ本体（開発作業ディレクトリ）
+│   │   └── nginx.conf              # Nginx リバースプロキシ設定
+│   ├── tasks/                      # Ansible デプロイタスク定義
+│   │   └── main.yml
+│   └── templates/                  # テンプレート・Docker Compose 設定群
+│       ├── .env.example            # Compose 用環境変数テンプレート
+│       ├── .env.example.j2         # Ansible 用環境変数テンプレート
+│       ├── app_docker-compose.yml   # Docker Compose 定義
+│       ├── app_docker-compose.yml.j2# Ansible 用 Compose テンプレート
+│       ├── nginx.conf.j2           # Ansible 用 Nginx テンプレート
+│       └── postgres_db_data/       # DB実データ保存領域（git管理外）
+├── .gitignore                      # リポジトリ全体用除外設定
+└── README.md                       # プロジェクト仕様書・手順書
 ```
-具体的なディレクトリ構成については下記を参照
+具体的なディレクトリ構成については下記を参照（前期での情報：最新は上記を参照）
 https://app.notion.com/p/_-36b8ff38ca3980a6a0f7fb2f59dfde6d?source=copy_link
 
 
