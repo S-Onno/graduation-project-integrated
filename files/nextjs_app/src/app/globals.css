@@ -146,6 +146,7 @@ body {
 .task-card:hover { background: var(--bg-card-hover); border-color: var(--border-light); }
 .task-card.done { opacity: 0.5; }
 .task-card.done .task-title { text-decoration: line-through; color: var(--text-muted); }
+.task-card.overdue { border-left: 3px solid var(--accent-red); }
 .task-check {
   width: 24px; height: 24px; border: 2px solid var(--border-light);
   border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;

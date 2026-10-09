@@ -1,0 +1,7 @@
+# Windows側VSCode等で編集してもCRLF化されないよう、テキストファイルはLFに固定する
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.j2 text eol=lf
