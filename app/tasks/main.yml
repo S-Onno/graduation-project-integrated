@@ -101,18 +101,31 @@
   changed_when: '"Relabeled" in app_restorecon_res.stdout'
 
 # -----------------------------------------------------------------
-# 4. コンテナ一括デプロイ ＆ ヘルスチェック検証
+# 4. コンテナ一括デプロイ ＆ ヘルスチェック検証 (完全冪等性保証)
 # -----------------------------------------------------------------
-- name: "app : [ベース取得] Next.js ビルド用ベースイメージ (node:22-alpine) の事前取得 (リトライ付)"
+- name: "app : [状態検査] 稼働中コンテナの状態を事前取得"
   ansible.builtin.command:
-    cmd: "docker pull node:22-alpine"
+    cmd: "docker inspect --format {% raw %}'{{.State.Status}}'{% endraw %} nextjs_app"
+  register: nextjs_existing_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: "app : [再構築要否判定] ソース・設定変更またはコンテナ未起動を検知"
+  ansible.builtin.set_fact:
+    app_rebuild_required: "{{ app_source_changed | default(false) or compose_manifest.changed | default(false) or app_nginx_conf_update.changed | default(false) or (nextjs_existing_check.rc != 0) }}"
+
+- name: "app : [ベース取得] Next.js ビルド用ベースイメージ (node:{{ version_image_node | default('22-alpine') }}) の事前取得"
+  ansible.builtin.command:
+    cmd: "docker pull node:{{ version_image_node | default('22-alpine') }}"
   register: node_pull_res
   until: node_pull_res is not failed
   retries: 5
   delay: 6
-  changed_when: '"Downloaded newer image" in node_pull_res.stdout or "Pull complete" in node_pull_res.stdout'
+  when: app_rebuild_required | bool
+  changed_when: '"Downloaded newer image" in node_pull_res.stdout'
 
-- name: "app : [Composeビルド] Next.js アプリケーションイメージのビルド (リトライ保証)"
+- name: "app : [Composeビルド] Next.js アプリケーションイメージのビルド"
   ansible.builtin.command:
     cmd: "docker compose build"
     chdir: "{{ app_base_dir | default('/opt/app') }}"
@@ -120,16 +133,19 @@
     DOCKER_BUILDKIT: "1"
     COMPOSE_DOCKER_CLI_BUILD: "1"
   register: app_build_res
-  until: app_build_res is not failed
-  retries: 5
-  delay: 10
-  changed_when: '"writing image" in app_build_res.stderr or "naming to" in app_build_res.stderr or app_source_changed | default(false)'
+  async: 900
+  poll: 5
+  when: app_rebuild_required | bool
+  changed_when: '"writing image" in app_build_res.stderr or "naming to" in app_build_res.stderr'
 
 - name: "app : [Composeデプロイ] Next.js ＆ PostgreSQL バックグラウンド起動"
   ansible.builtin.command:
     cmd: "docker compose up -d --remove-orphans"
     chdir: "{{ app_base_dir | default('/opt/app') }}"
   register: app_compose_res
+  async: 300
+  poll: 5
+  when: app_rebuild_required | bool
   changed_when: '"Started" in app_compose_res.stdout or "Created" in app_compose_res.stdout or "Recreated" in app_compose_res.stdout or "Started" in app_compose_res.stderr or "Created" in app_compose_res.stderr or "Recreated" in app_compose_res.stderr'
 
 - name: "app : [健全性待機] postgres_db の内部初期化完了（Healthy状態）を検知"
@@ -141,6 +157,7 @@
   delay: 2
   changed_when: false
   check_mode: false
+
 
 - name: "app : [健全性待機] nextjs_app コンテナの稼働開始（running状態）を検知"
   ansible.builtin.command:

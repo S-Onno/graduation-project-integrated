@@ -20,6 +20,8 @@ services:
       - no-new-privileges:true
     ports:
       - "{{ app_web_port | default(8080) }}:80"
+    environment:
+      TZ: "Asia/Tokyo"
     volumes:
       - {{ app_base_dir | default('/opt/app') }}/nginx.conf:/etc/nginx/nginx.conf:ro,Z
     depends_on:
@@ -30,8 +32,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: "512M"
+          cpus: "{{ server_b_proxy_cpu_limit | default('0.5') }}"
+          memory: "{{ server_b_proxy_mem_limit | default('256M') }}"
     logging:
       driver: "json-file"
       options:
@@ -47,12 +49,13 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      TZ: "Asia/Tokyo"
       NODE_ENV: "production"
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
       DATABASE_URL: 'postgresql://postgres:{{ vault_db_root_password | default("Pg_RoOt_sEcUrE_83d9a1f7c5e2b460") | string | urlencode | replace("$", "$$") }}@postgres_db:5432/{{ db_name | default("app_db") }}?schema=public&connection_limit=50'
       NEXTAUTH_SECRET: '{{ vault_nextauth_secret | default("NxAt_SeCrEt_sEcUrE_51d6c8b2e9a4f370") | replace("$", "$$") }}'
-      NEXTAUTH_URL: '{% if app_nextauth_url is defined and app_nextauth_url %}{{ app_nextauth_url }}{% elif app_domain is defined and app_domain %}https://{{ app_domain }}{% else %}http://{{ hostvars["server-b"]["internal_ip"] | default(hostvars["server-b"]["ansible_host"] | default("10.149.245.115")) }}:{{ app_web_port | default(8080) }}{% endif %}'
+      NEXTAUTH_URL: '{% if app_nextauth_url is defined and app_nextauth_url %}{{ app_nextauth_url }}{% elif app_domain_name is defined and app_domain_name %}https://{{ app_domain_name }}{% elif app_domain is defined and app_domain %}https://{{ app_domain }}{% else %}http://{{ hostvars["server-b"]["internal_ip"] | default(hostvars["server-b"]["ansible_host"] | default("10.149.245.115")) }}:{{ app_web_port | default(8080) }}{% endif %}'
       UV_THREADPOOL_SIZE: "64"
     depends_on:
       postgres_db:
@@ -63,8 +66,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "{{ nextjs_cpu_limit | default('2.0') }}"
-          memory: "{{ nextjs_memory_limit | default('2.0G') }}"
+          cpus: "{{ server_b_app_cpu_limit | default(nextjs_cpu_limit | default('2.0')) }}"
+          memory: "{{ server_b_app_mem_limit | default(nextjs_memory_limit | default('2048M')) }}"
     logging:
       driver: "json-file"
       options:
@@ -78,6 +81,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      TZ: "Asia/Tokyo"
       POSTGRES_USER: 'postgres'
       POSTGRES_PASSWORD: '{{ vault_db_root_password | default("Pg_RoOt_sEcUrE_83d9a1f7c5e2b460") | replace("$", "$$") }}'
       POSTGRES_DB: '{{ db_name | default("app_db") }}'
@@ -95,8 +99,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "{{ app_pg_cpu_limit | default('2.0') }}"
-          memory: "{{ app_pg_memory_limit | default('2.0G') }}"
+          cpus: "{{ server_b_db_cpu_limit | default(app_pg_cpu_limit | default('1.5')) }}"
+          memory: "{{ server_b_db_mem_limit | default(app_pg_memory_limit | default('1536M')) }}"
     logging:
       driver: "json-file"
       options:

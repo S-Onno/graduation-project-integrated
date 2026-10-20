@@ -42,7 +42,7 @@ http {
     proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=microcache:10m max_size=100m inactive=60s;
     proxy_cache_key "$scheme$request_method$host$request_uri";
 
-    # レートリミット：{{ nginx_rate_limit_rate | default('100r/s') }} (バースト{{ nginx_rate_limit_burst | default(150) }}まで即時通過を許可)
+    # レートリミット：{{ nginx_rate_limit_rate | default('100r/s') }} (バースト{{ nginx_rate_limit_burst | default(120) }}まで即時通過を許可)
     limit_req_zone $binary_remote_addr zone=noc_limit:10m rate={{ nginx_rate_limit_rate | default('100r/s') }};
 
     # Next.jsコンテナとのTCP接続を常時保持（コネクション切断遅延を完全排除）
@@ -56,7 +56,7 @@ http {
         server_name _;
 
         location / {
-            limit_req zone=noc_limit burst={{ nginx_rate_limit_burst | default(150) }} nodelay;
+            limit_req zone=noc_limit burst={{ nginx_rate_limit_burst | default(120) }} nodelay;
 
             # 超高速化核心: マイクロキャッシュ制御および非同期ロックタイムアウト
             proxy_cache microcache;
