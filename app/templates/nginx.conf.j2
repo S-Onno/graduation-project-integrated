@@ -51,9 +51,52 @@ http {
         keepalive {{ nginx_upstream_keepalive | default(64) }};
     }
 
+    # -------------------------------------------------------------------------
+    # 1. HTTP サーバー (Port 80) : ACME チャレンジ受付 ＆ HTTPS 301 強制リダイレクト
+    # -------------------------------------------------------------------------
     server {
         listen 80;
         server_name _;
+
+        # Let's Encrypt HTTP-01 チャレンジ用パス（Webroot検証用）
+        location ^~ /.well-known/acme-challenge/ {
+            default_type "text/plain";
+            root /var/www/certbot;
+        }
+
+        # その他すべてのHTTPアクセスを HTTPS (Port 443) へ安全に永続リダイレクト
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    # -------------------------------------------------------------------------
+    # 2. HTTPS サーバー (Port 443) : TLS 1.2/1.3 暗号化 ＆ Next.js 超高速プロキシ
+    # -------------------------------------------------------------------------
+    server {
+        listen 443 ssl default_server;
+        server_name _;
+
+        # SSL/TLS 証明書・秘密鍵設定 (Let's Encrypt または 自己署名証明書)
+        ssl_certificate     /etc/nginx/ssl/fullchain.pem;
+        ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+
+        # 暗号化プロトコル ＆ 暗号スイート最適化 (TLS 1.0/1.1 完全排除)
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
+
+        # SSLセッションキャッシュ（ハンドシェイク負荷低減）
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 1d;
+        ssl_session_tickets off;
+
+        # セキュリティヘッダー（HSTS 強制適用）
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
         location / {
             limit_req zone=noc_limit burst={{ nginx_rate_limit_burst | default(120) }} nodelay;
@@ -74,7 +117,8 @@ http {
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Forwarded-Port 443;
 
             # タイムアウト制御の最適化
             proxy_connect_timeout 10s;

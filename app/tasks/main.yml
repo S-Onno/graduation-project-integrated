@@ -47,6 +47,103 @@
     owner: root
     group: root
 
+- name: "app : [ディレクトリ作成] SSL証明書保存用ディレクトリの生成"
+  ansible.builtin.file:
+    path: "{{ app_ssl_dir | default('/opt/app/ssl') }}"
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+    setype: container_file_t
+
+# -----------------------------------------------------------------
+# 2.5 SSL/TLS 暗号化基盤（本番Let's Encrypt ＆ 検証自己署名ハイブリッド）
+# -----------------------------------------------------------------
+- name: "app : [本番DNS事前検査] 本番ドメイン ({{ app_domain_name | default('zootask.woodvillage.jp') }}) のAレコード名前解決検証"
+  ansible.builtin.command:
+    cmd: "python3 -c 'import socket; print(socket.gethostbyname(\"{{ app_domain_name | default(\"zootask.woodvillage.jp\") }}\"))'"
+  register: dns_check_res
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  when: is_production | default(false) | bool
+
+- name: "app : [本番DNS判定] 自ホストIPとの整合性評価"
+  ansible.builtin.set_fact:
+    certbot_dns_ready: "{{ (is_production | default(false) | bool) and (dns_check_res.rc | default(1) == 0) and (dns_check_res.stdout | default('') | trim in [ansible_default_ipv4.address | default(''), ansible_host | default(''), hostvars[inventory_hostname]['ansible_host'] | default('')]) }}"
+  when: is_production | default(false) | bool
+
+- name: "app : [本番専用: 依存導入] EPEL リポジトリおよび Certbot の導入"
+  ansible.builtin.dnf:
+    name:
+      - epel-release
+      - certbot
+    state: present
+  when:
+    - is_production | default(false) | bool
+    - certbot_dns_ready | default(false) | bool
+
+- name: "app : [本番専用: 証明書取得] Let's Encrypt 公式SSL証明書の発行 (Standaloneモード)"
+  ansible.builtin.command: >
+    certbot certonly --standalone
+    -d {{ app_domain_name | default('zootask.woodvillage.jp') }}
+    --non-interactive
+    --agree-tos
+    -m {{ certbot_admin_email | default('admin@woodvillage.jp') }}
+    --preferred-challenges http
+  args:
+    creates: "/etc/letsencrypt/live/{{ app_domain_name | default('zootask.woodvillage.jp') }}/fullchain.pem"
+  when:
+    - is_production | default(false) | bool
+    - certbot_dns_ready | default(false) | bool
+  register: certbot_cert_res
+
+- name: "app : [本番専用: 証明書配置] Let's Encrypt 証明書をコンテナ共有ディレクトリへ同期"
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    remote_src: true
+    mode: '0600'
+    owner: root
+    group: root
+  loop:
+    - { src: "/etc/letsencrypt/live/{{ app_domain_name | default('zootask.woodvillage.jp') }}/fullchain.pem", dest: "{{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem" }
+    - { src: "/etc/letsencrypt/live/{{ app_domain_name | default('zootask.woodvillage.jp') }}/privkey.pem", dest: "{{ app_ssl_dir | default('/opt/app/ssl') }}/privkey.pem" }
+  when:
+    - is_production | default(false) | bool
+    - certbot_dns_ready | default(false) | bool
+
+- name: "app : [本番専用: 自動更新] Certbot 自動更新および Nginx 再読込ジョブの登録"
+  ansible.builtin.cron:
+    name: "certbot_renewal_for_zootask"
+    special_time: daily
+    job: >
+      certbot renew --quiet --deploy-hook "cp -L /etc/letsencrypt/live/{{ app_domain_name | default('zootask.woodvillage.jp') }}/fullchain.pem {{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem && cp -L /etc/letsencrypt/live/{{ app_domain_name | default('zootask.woodvillage.jp') }}/privkey.pem {{ app_ssl_dir | default('/opt/app/ssl') }}/privkey.pem && chmod 600 {{ app_ssl_dir | default('/opt/app/ssl') }}/* && restorecon -Rv {{ app_ssl_dir | default('/opt/app/ssl') }} && docker exec web_server nginx -s reload"
+  when:
+    - is_production | default(false) | bool
+    - certbot_dns_ready | default(false) | bool
+
+- name: "app : [検証/フォールバック: 自己署名] OpenSSL による自己署名SSL証明書 (SAN対応) の自動生成"
+  ansible.builtin.command: >
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048
+    -keyout {{ app_ssl_dir | default('/opt/app/ssl') }}/privkey.pem
+    -out {{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem
+    -subj "/C=JP/ST=Tokyo/L=Shinjuku/O=ZooTask/CN={{ app_domain_name | default('zootask.woodvillage.jp') }}"
+    -addext "subjectAltName = DNS:{{ app_domain_name | default('zootask.woodvillage.jp') }}, DNS:localhost, IP:10.149.245.115, IP:127.0.0.1"
+  args:
+    creates: "{{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem"
+  when: not (is_production | default(false) | bool) or not (certbot_dns_ready | default(false) | bool)
+
+- name: "app : [SSLパーミッション] 証明書および秘密鍵の安全な権限設定"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: '0600'
+    owner: root
+    group: root
+  loop:
+    - "{{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem"
+    - "{{ app_ssl_dir | default('/opt/app/ssl') }}/privkey.pem"
+
 # -----------------------------------------------------------------
 # 3. アセット配布 ＆ 設定同期 (シークレット保護)
 # -----------------------------------------------------------------
@@ -169,21 +266,38 @@
   changed_when: false
   check_mode: false
 
-- name: "app : [ウォームアップ待機] Webプロキシの疎通準備完了を確認"
+- name: "app : [ウォームアップ待機] Webプロキシの疎通準備完了を確認 (HTTP 80 / HTTPS 443)"
   ansible.builtin.wait_for:
     host: "127.0.0.1"
-    port: "{{ app_web_port | default(8080) }}"
+    port: "{{ item }}"
     state: started
     delay: 0
     timeout: 30
+  loop:
+    - "{{ app_http_port | default(80) }}"
+    - "{{ app_https_port | default(443) }}"
 
-- name: "app : [ウォームアップ実行] 初回アクセス時のコールドスタート遅延を事前キャッシュ化"
+- name: "app : [ウォームアップ実行: HTTP] HTTP(80) から HTTPS(443) への 301 リダイレクト検証"
   ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ app_web_port | default(8080) }}/"
+    url: "http://127.0.0.1:{{ app_http_port | default(80) }}/"
     method: GET
-    status_code: [200, 301, 302, 307]
-  register: warmup_result
-  until: warmup_result.status in [200, 301, 302, 307]
+    status_code: [301, 302, 307]
+    follow_redirects: none
+  register: warmup_http_result
+  until: warmup_http_result.status in [301, 302, 307]
+  retries: 15
+  delay: 2
+  changed_when: false
+  check_mode: false
+
+- name: "app : [ウォームアップ実行: HTTPS] HTTPS(443) への暗号化通信および Next.js レスポンス検証"
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ app_https_port | default(443) }}/"
+    method: GET
+    status_code: [200, 307, 308]
+    validate_certs: false
+  register: warmup_https_result
+  until: warmup_https_result.status in [200, 307, 308]
   retries: 15
   delay: 2
   changed_when: false

@@ -14,7 +14,11 @@ app_git_repo: "https://github.com/S-Onno/graduation-project-integrated.git"
 app_git_version: "main"
 
 # ポート & ネットワーク
-app_web_port: 8080
+app_http_port: 80
+app_https_port: 443
+app_web_port: 80
+app_ssl_dir: "/opt/app/ssl"
+certbot_admin_email: "admin@woodvillage.jp"
 
 # コンテナイメージバージョン
 version_image_nginx: "1.25-alpine"

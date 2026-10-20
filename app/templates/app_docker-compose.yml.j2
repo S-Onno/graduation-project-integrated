@@ -19,11 +19,13 @@ services:
     security_opt:
       - no-new-privileges:true
     ports:
-      - "{{ app_web_port | default(8080) }}:80"
+      - "{{ app_http_port | default(80) }}:80"
+      - "{{ app_https_port | default(443) }}:443"
     environment:
       TZ: "Asia/Tokyo"
     volumes:
       - {{ app_base_dir | default('/opt/app') }}/nginx.conf:/etc/nginx/nginx.conf:ro,Z
+      - {{ app_ssl_dir | default('/opt/app/ssl') }}:/etc/nginx/ssl:ro,Z
     depends_on:
       nextjs_app:
         condition: service_started
@@ -55,7 +57,7 @@ services:
       HOSTNAME: "0.0.0.0"
       DATABASE_URL: 'postgresql://postgres:{{ vault_db_root_password | default("Pg_RoOt_sEcUrE_83d9a1f7c5e2b460") | string | urlencode | replace("$", "$$") }}@postgres_db:5432/{{ db_name | default("app_db") }}?schema=public&connection_limit=50'
       NEXTAUTH_SECRET: '{{ vault_nextauth_secret | default("NxAt_SeCrEt_sEcUrE_51d6c8b2e9a4f370") | replace("$", "$$") }}'
-      NEXTAUTH_URL: '{% if app_nextauth_url is defined and app_nextauth_url %}{{ app_nextauth_url }}{% elif app_domain_name is defined and app_domain_name %}https://{{ app_domain_name }}{% elif app_domain is defined and app_domain %}https://{{ app_domain }}{% else %}http://{{ hostvars["server-b"]["internal_ip"] | default(hostvars["server-b"]["ansible_host"] | default("10.149.245.115")) }}:{{ app_web_port | default(8080) }}{% endif %}'
+      NEXTAUTH_URL: '{% if app_nextauth_url is defined and app_nextauth_url %}{{ app_nextauth_url }}{% elif is_production | default(false) | bool %}https://{{ app_domain_name | default("zootask.woodvillage.jp") }}{% else %}https://{{ hostvars["server-b"]["internal_ip"] | default(hostvars["server-b"]["ansible_host"] | default("10.149.245.115")) }}{% endif %}'
       UV_THREADPOOL_SIZE: "64"
     depends_on:
       postgres_db:
