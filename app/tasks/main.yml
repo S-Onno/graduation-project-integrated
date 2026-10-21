@@ -73,6 +73,25 @@
     certbot_dns_ready: "{{ (is_production | default(false) | bool) and (dns_check_res.rc | default(1) == 0) and (dns_check_res.stdout | default('') | trim in [ansible_default_ipv4.address | default(''), ansible_host | default(''), hostvars[inventory_hostname]['ansible_host'] | default('')]) }}"
   when: is_production | default(false) | bool
 
+- name: "app : [SSLモード通知: Let's Encrypt] 本番公式SSL証明書の発行を通知"
+  ansible.builtin.debug:
+    msg: "🌐 [本番環境: Let's Encrypt] DNS検証成功。Let's Encrypt 公式無料SSL証明書を発行・適用します。"
+  when:
+    - is_production | default(false) | bool
+    - certbot_dns_ready | default(false) | bool
+
+- name: "app : [SSLモード通知: 安全弁フォールバック] 自己署名証明書での安全起動を通知"
+  ansible.builtin.debug:
+    msg: "⚠️ [本番環境: 安全弁発動] DNS Aレコード未浸透のため、自己署名証明書で安全にフォールバック起動します。DNS浸透後に make deploy-prod でLet's Encryptへ自動昇格可能です。"
+  when:
+    - is_production | default(false) | bool
+    - not (certbot_dns_ready | default(false) | bool)
+
+- name: "app : [SSLモード通知: Vagrant検証] ローカル自己署名証明書の適用を通知"
+  ansible.builtin.debug:
+    msg: "💻 [ローカル環境: Vagrant] OpenSSL による自己署名SAN証明書 (完全無料) を内部生成・適用します。"
+  when: not (is_production | default(false) | bool)
+
 - name: "app : [本番専用: 依存導入] EPEL リポジトリおよび Certbot の導入"
   ansible.builtin.dnf:
     name:
@@ -103,6 +122,7 @@
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
     remote_src: true
+    follow: true
     mode: '0600'
     owner: root
     group: root
@@ -129,10 +149,11 @@
     -keyout {{ app_ssl_dir | default('/opt/app/ssl') }}/privkey.pem
     -out {{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem
     -subj "/C=JP/ST=Tokyo/L=Shinjuku/O=ZooTask/CN={{ app_domain_name | default('zootask.woodvillage.jp') }}"
-    -addext "subjectAltName = DNS:{{ app_domain_name | default('zootask.woodvillage.jp') }}, DNS:localhost, IP:10.149.245.115, IP:127.0.0.1"
+    -addext "subjectAltName = DNS:{{ app_domain_name | default('zootask.woodvillage.jp') }}, DNS:localhost, IP:{{ ansible_default_ipv4.address | default(ansible_host | default('10.149.245.115')) }}, IP:127.0.0.1"
   args:
     creates: "{{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem"
-  when: not (is_production | default(false) | bool) or not (certbot_dns_ready | default(false) | bool)
+  when:
+    - (not (is_production | default(false) | bool)) or (not (certbot_dns_ready | default(false) | bool))
 
 - name: "app : [SSLパーミッション] 証明書および秘密鍵の安全な権限設定"
   ansible.builtin.file:

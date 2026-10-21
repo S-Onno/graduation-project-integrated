@@ -19,6 +19,7 @@ app_https_port: 443
 app_web_port: 80
 app_ssl_dir: "/opt/app/ssl"
 certbot_admin_email: "admin@woodvillage.jp"
+certbot_dns_ready: false
 
 # コンテナイメージバージョン
 version_image_nginx: "1.25-alpine"
