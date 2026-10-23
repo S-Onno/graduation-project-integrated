@@ -13,7 +13,7 @@ networks:
 
 services:
   web_server:
-    image: {{ nginx_base_image | default('nginx:' + (version_image_nginx | default('1.26.2-alpine'))) }}
+    image: {{ nginx_base_image | default('nginx:' + (version_image_nginx | default('1.31.7-alpine'))) }}
     container_name: web_server
     restart: unless-stopped
     security_opt:
@@ -77,7 +77,7 @@ services:
         max-file: "{{ docker_log_max_file | default('3') }}"
 
   postgres_db:
-    image: "postgres:{{ version_image_postgres_app | default('16.5-alpine') }}"
+    image: "postgres:{{ version_image_postgres_app | default('16-alpine') }}"
     container_name: postgres_db
     restart: unless-stopped
     security_opt:
