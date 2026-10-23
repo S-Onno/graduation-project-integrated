@@ -21,9 +21,9 @@ app_ssl_dir: "/opt/app/ssl"
 certbot_admin_email: "admin@woodvillage.jp"
 certbot_dns_ready: false
 
-# コンテナイメージバージョン
-version_image_nginx: "1.25-alpine"
-version_image_postgres_app: "16-alpine"
+# コンテナイメージバージョン (安定LTS版固定)
+version_image_nginx: "1.26.2-alpine"
+version_image_postgres_app: "16.5-alpine"
 
 # リソース制限 & パフォーマンス
 nextjs_cpu_limit: "2.0"
