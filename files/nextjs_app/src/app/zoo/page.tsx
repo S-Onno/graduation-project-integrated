@@ -11,6 +11,22 @@ const ANIMAL_EMOJI: Record<string, string> = {
   カバ: '🦛', ワニ: '🐊', フラミンゴ: '🦩',
 };
 
+type AnimalStage = 'BABY' | 'CHILD' | 'ADULT';
+
+// GET /api/zoo のレスポンス（画面で使う項目のみ）
+interface ZooPlacement {
+  id: string;
+  pos_x: number;
+  pos_y: number;
+  area_type: string;
+  userAnimal: {
+    stage: AnimalStage;
+    animal: { name: string };
+  };
+}
+
+const STAGE_FONT_SIZE: Record<AnimalStage, number> = { BABY: 28, CHILD: 38, ADULT: 50 };
+
 export default function ZooGamePage() {
   const router = useRouter();
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -33,8 +49,7 @@ export default function ZooGamePage() {
       try {
         const res = await fetch('/api/zoo');
         if (!res.ok) throw new Error('動物園データの取得に失敗しました');
-        const data = await res.json();
-        const placements = data.placements || [];
+        const placements: ZooPlacement[] = await res.json();
 
         if (isCancelled) return;
 
@@ -71,13 +86,11 @@ export default function ZooGamePage() {
         worldLayer.addChild(bgField);
 
         // 動物の描画ロジック
-        placements.forEach((p: any) => {
-          const animalName = p.userAnimal?.animal?.name || '未知の動物';
+        placements.forEach((p) => {
+          const animalName = p.userAnimal.animal.name;
           const emoji = ANIMAL_EMOJI[animalName] ?? '🐾';
-          
-          const animalLevel = p.userAnimal?.level || 1;
-          const sizeMap = [28, 38, 50];
-          const fontSize = sizeMap[Math.min(animalLevel - 1, 2)] || 38;
+
+          const fontSize = STAGE_FONT_SIZE[p.userAnimal.stage];
 
           const emojiStyle = new PIXI.TextStyle({ fontSize, fontFamily: 'sans-serif' });
           const emojiText = new PIXI.Text({ text: emoji, style: emojiStyle });
