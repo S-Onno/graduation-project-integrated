@@ -233,9 +233,9 @@
   ansible.builtin.set_fact:
     app_rebuild_required: "{{ app_source_changed | default(false) or compose_manifest.changed | default(false) or app_nginx_conf_update.changed | default(false) or (nextjs_existing_check.rc != 0) }}"
 
-- name: "app : [ベース取得] Next.js ビルド用ベースイメージ (node:{{ version_image_node | default('22.13.0-alpine') }}) の事前取得"
+- name: "app : [ベース取得] Next.js ビルド用ベースイメージ (node:{{ version_image_node | default('22.23.4-alpine') }}) の事前取得"
   ansible.builtin.command:
-    cmd: "docker pull node:{{ version_image_node | default('22.13.0-alpine') }}"
+    cmd: "docker pull node:{{ version_image_node | default('22.23.4-alpine') }}"
   register: node_pull_res
   until: node_pull_res is not failed
   retries: 5

@@ -1,0 +1,21 @@
+# Next.js アプリケーション専用 .gitattributes
+# 画像およびバイナリアセットの改行コード変換を完全無効化
+* text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.prisma text eol=lf
+*.svg text eol=lf
+
+# バイナリ保護
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
