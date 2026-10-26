@@ -9,7 +9,8 @@ RUN apk add --no-cache libc6-compat
 # ── 依存関係インストール ──────────────────────────────────────────────────────
 FROM base AS deps
 COPY package*.json ./
-RUN npm config set fetch-retries 5 && \
+RUN --mount=type=cache,target=/root/.npm \
+    npm config set fetch-retries 5 && \
     npm config set fetch-retry-mintimeout 20000 && \
     npm config set fetch-retry-maxtimeout 120000 && \
     npm ci --no-audit --no-fund --loglevel=error
@@ -20,9 +21,15 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV UV_THREADPOOL_SIZE=64
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Prismaスキーマを先行コピーしてクライアント生成 (スキーマ不変時は完全キャッシュ)
+COPY prisma ./prisma/
+COPY prisma.config.ts ./
 RUN ./node_modules/.bin/prisma generate
-RUN npm run build
+# アプリケーションソースをコピー
+COPY . .
+# Next.js ビルドキャッシュをBuildKitで永続化し差分コンパイルを最大加速
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 # ── 本番ランタイム ────────────────────────────────────────────────────────────
 FROM base AS runner

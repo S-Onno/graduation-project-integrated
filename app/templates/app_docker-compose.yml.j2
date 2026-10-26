@@ -57,8 +57,8 @@ services:
       NODE_ENV: "production"
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-      DATABASE_URL: 'postgresql://postgres:{{ vault_db_root_password | default(("!g8RvdqtF+XuHNsgZJXK" if not (is_production | default(false) | bool) else none) | mandatory("vault_db_root_password is required in production")) | string | urlencode | replace("$", "$$") }}@postgres_db:5432/{{ db_name | default("app_db") }}?schema=public&connection_limit=50'
-      NEXTAUTH_SECRET: '{{ vault_nextauth_secret | default(("RkHY94HEHoN!dWx!D3De" if not (is_production | default(false) | bool) else none) | mandatory("vault_nextauth_secret is required in production")) | replace("$", "$$") }}'
+      DATABASE_URL: 'postgresql://postgres:{{ vault_db_root_password | default(none if (is_production | default(false) | bool) else "!g8RvdqtF+XuHNsgZJXK") | mandatory("vault_db_root_password is required in production") | string | urlencode | replace("$", "$$") }}@postgres_db:5432/{{ db_name | default("app_db") }}?schema=public&connection_limit=50'
+      NEXTAUTH_SECRET: '{{ vault_nextauth_secret | default(none if (is_production | default(false) | bool) else "RkHY94HEHoN!dWx!D3De") | mandatory("vault_nextauth_secret is required in production") | replace("$", "$$") }}'
       NEXTAUTH_URL: '{% if app_nextauth_url is defined and app_nextauth_url %}{{ app_nextauth_url }}{% elif is_production | default(false) | bool %}https://{{ app_domain_name | default("zootask.woodvillage.jp") }}{% else %}https://{{ hostvars["server-b"]["internal_ip"] | default(hostvars["server-b"]["ansible_host"] | default("10.149.245.115")) }}{% endif %}'
       UV_THREADPOOL_SIZE: "64"
     depends_on:
@@ -87,7 +87,7 @@ services:
     environment:
       TZ: "Asia/Tokyo"
       POSTGRES_USER: 'postgres'
-      POSTGRES_PASSWORD: '{{ vault_db_root_password | default(("!g8RvdqtF+XuHNsgZJXK" if not (is_production | default(false) | bool) else none) | mandatory("vault_db_root_password is required in production")) | replace("$", "$$") }}'
+      POSTGRES_PASSWORD: '{{ vault_db_root_password | default(none if (is_production | default(false) | bool) else "!g8RvdqtF+XuHNsgZJXK") | mandatory("vault_db_root_password is required in production") | replace("$", "$$") }}'
       POSTGRES_DB: '{{ db_name | default("app_db") }}'
     command: postgres -c max_connections={{ app_pg_max_connections | default(300) }} -c shared_buffers=256MB
     volumes:

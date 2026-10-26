@@ -4,3 +4,10 @@ src/generated
 .env*
 *.md
 tsconfig.tsbuildinfo
+.git
+.gitignore
+.gitattributes
+.vscode
+*.log
+npm-debug.log*
+Dockerfile*

@@ -40,3 +40,5 @@ sysctl_netdev_max_backlog: 2048
 
 # DB設定
 db_name: "app_db"
+db_root_password: "!g8RvdqtF+XuHNsgZJXK"
+nextauth_secret: "RkHY94HEHoN!dWx!D3De"
