@@ -1,0 +1,325 @@
+# 冪等性・ハングアップ・SELinux完全対策版
+---
+# [infrastructure-repo-iac-secure] roles/app/tasks/main.yml
+# =========================================================================
+# 🎓 卒業制作: Server B アプリ基盤＆高パフォーマンスIaCマスタータスク
+# =========================================================================
+
+# -----------------------------------------------------------------
+# 1. 【カーネルチューニング】バースト接続を受け止めるOSソケット拡張
+# -----------------------------------------------------------------
+- name: "app : [カーネル調整] 同時アクセスを受け止めるソケットバックログの拡張"
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value | string }}"
+    state: present
+    reload: true
+  loop:
+    - { name: 'net.core.somaxconn', value: "{{ sysctl_somaxconn | default(2048) }}" }
+    - { name: 'net.ipv4.tcp_max_syn_backlog', value: "{{ sysctl_tcp_max_syn_backlog | default(2048) }}" }
+    - { name: 'net.core.netdev_max_backlog', value: "{{ sysctl_netdev_max_backlog | default(2048) }}" }
+
+# -----------------------------------------------------------------
+# 2. ディレクトリ構造整備 ＆ SELinux事前防御
+# -----------------------------------------------------------------
+- name: "app : [ディレクトリ作成] Docker Compose展開用ベースディレクトリの生成"
+  ansible.builtin.file:
+    path: "{{ app_base_dir | default('/opt/app') }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: "app : [ディレクトリ作成] PostgreSQLデータ保存用ディレクトリの作成"
+  ansible.builtin.file:
+    path: "{{ app_pg_data_path | default('/opt/app/postgres_data') }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+    setype: container_file_t
+
+- name: "app : [ディレクトリ作成] アプリソース展開先階層の生成"
+  ansible.builtin.file:
+    path: "{{ app_base_dir | default('/opt/app') }}/nextjs_app"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: "app : [ディレクトリ作成] SSL証明書保存用ディレクトリの生成"
+  ansible.builtin.file:
+    path: "{{ app_ssl_dir | default('/opt/app/ssl') }}"
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+    setype: container_file_t
+
+# -----------------------------------------------------------------
+# 2.5 SSL/TLS 暗号化基盤（本番Let's Encrypt ＆ 検証自己署名ハイブリッド）
+# -----------------------------------------------------------------
+- name: "app : [本番DNS事前検査] 本番ドメイン ({{ app_domain_name | default('zootask.woodvillage.jp') }}) のAレコード名前解決検証"
+  ansible.builtin.command:
+    cmd: "python3 -c 'import socket; print(socket.gethostbyname(\"{{ app_domain_name | default(\"zootask.woodvillage.jp\") }}\"))'"
+  register: dns_check_res
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  when: is_production | default(false) | bool
+
+- name: "app : [本番DNS判定] 自ホストIPとの整合性評価"
+  ansible.builtin.set_fact:
+    certbot_dns_ready: "{{ (is_production | default(false) | bool) and (dns_check_res.rc | default(1) == 0) and (dns_check_res.stdout | default('') | trim in [ansible_default_ipv4.address | default(''), ansible_host | default(''), hostvars[inventory_hostname]['ansible_host'] | default('')]) }}"
+  when: is_production | default(false) | bool
+
+- name: "app : [SSLモード通知: Let's Encrypt] 本番公式SSL証明書の発行を通知"
+  ansible.builtin.debug:
+    msg: "🌐 [本番環境: Let's Encrypt] DNS検証成功。Let's Encrypt 公式無料SSL証明書を発行・適用します。"
+  when:
+    - is_production | default(false) | bool
+    - certbot_dns_ready | default(false) | bool
+
+- name: "app : [SSLモード通知: 安全弁フォールバック] 自己署名証明書での安全起動を通知"
+  ansible.builtin.debug:
+    msg: "⚠️ [本番環境: 安全弁発動] DNS Aレコード未浸透のため、自己署名証明書で安全にフォールバック起動します。DNS浸透後に make deploy-prod でLet's Encryptへ自動昇格可能です。"
+  when:
+    - is_production | default(false) | bool
+    - not (certbot_dns_ready | default(false) | bool)
+
+- name: "app : [SSLモード通知: Vagrant検証] ローカル自己署名証明書の適用を通知"
+  ansible.builtin.debug:
+    msg: "💻 [ローカル環境: Vagrant] OpenSSL による自己署名SAN証明書 (完全無料) を内部生成・適用します。"
+  when: not (is_production | default(false) | bool)
+
+- name: "app : [本番専用: 依存導入] EPEL リポジトリおよび Certbot の導入"
+  ansible.builtin.dnf:
+    name:
+      - epel-release
+      - certbot
+    state: present
+  when:
+    - is_production | default(false) | bool
+    - certbot_dns_ready | default(false) | bool
+
+- name: "app : [本番専用: 証明書取得] Let's Encrypt 公式SSL証明書の発行 (Standaloneモード)"
+  ansible.builtin.command: >
+    certbot certonly --standalone
+    -d {{ app_domain_name | default('zootask.woodvillage.jp') }}
+    --non-interactive
+    --agree-tos
+    -m {{ certbot_admin_email | default('admin@woodvillage.jp') }}
+    --preferred-challenges http
+  args:
+    creates: "/etc/letsencrypt/live/{{ app_domain_name | default('zootask.woodvillage.jp') }}/fullchain.pem"
+  when:
+    - is_production | default(false) | bool
+    - certbot_dns_ready | default(false) | bool
+  register: certbot_cert_res
+
+- name: "app : [本番専用: 証明書配置] Let's Encrypt 証明書をコンテナ共有ディレクトリへ同期"
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    remote_src: true
+    follow: true
+    mode: '0600'
+    owner: root
+    group: root
+  loop:
+    - { src: "/etc/letsencrypt/live/{{ app_domain_name | default('zootask.woodvillage.jp') }}/fullchain.pem", dest: "{{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem" }
+    - { src: "/etc/letsencrypt/live/{{ app_domain_name | default('zootask.woodvillage.jp') }}/privkey.pem", dest: "{{ app_ssl_dir | default('/opt/app/ssl') }}/privkey.pem" }
+  when:
+    - is_production | default(false) | bool
+    - certbot_dns_ready | default(false) | bool
+
+- name: "app : [本番専用: 自動更新] Certbot 自動更新および Nginx 再読込ジョブの登録"
+  ansible.builtin.cron:
+    name: "certbot_renewal_for_zootask"
+    special_time: daily
+    job: >
+      certbot renew --quiet --deploy-hook "cp -L /etc/letsencrypt/live/{{ app_domain_name | default('zootask.woodvillage.jp') }}/fullchain.pem {{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem && cp -L /etc/letsencrypt/live/{{ app_domain_name | default('zootask.woodvillage.jp') }}/privkey.pem {{ app_ssl_dir | default('/opt/app/ssl') }}/privkey.pem && chmod 600 {{ app_ssl_dir | default('/opt/app/ssl') }}/* && restorecon -Rv {{ app_ssl_dir | default('/opt/app/ssl') }} && docker exec web_server nginx -s reload"
+  when:
+    - is_production | default(false) | bool
+    - certbot_dns_ready | default(false) | bool
+
+- name: "app : [検証/フォールバック: 自己署名] OpenSSL による自己署名SSL証明書 (SAN対応) の自動生成"
+  ansible.builtin.command: >
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048
+    -keyout {{ app_ssl_dir | default('/opt/app/ssl') }}/privkey.pem
+    -out {{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem
+    -subj "/C=JP/ST=Tokyo/L=Shinjuku/O=ZooTask/CN={{ app_domain_name | default('zootask.woodvillage.jp') }}"
+    -addext "subjectAltName = DNS:{{ app_domain_name | default('zootask.woodvillage.jp') }}, DNS:localhost, IP:{{ ansible_default_ipv4.address | default(ansible_host | default('10.149.245.115')) }}, IP:127.0.0.1"
+  args:
+    creates: "{{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem"
+  when:
+    - (not (is_production | default(false) | bool)) or (not (certbot_dns_ready | default(false) | bool))
+
+- name: "app : [SSLパーミッション] 証明書および秘密鍵の安全な権限設定"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: '0600'
+    owner: root
+    group: root
+  loop:
+    - "{{ app_ssl_dir | default('/opt/app/ssl') }}/fullchain.pem"
+    - "{{ app_ssl_dir | default('/opt/app/ssl') }}/privkey.pem"
+
+# -----------------------------------------------------------------
+# 3. アセット配布 ＆ 設定同期 (シークレット保護)
+# -----------------------------------------------------------------
+- name: "app : [アセット配布: Local] 司令塔のソースコード・設定アセットをServer Bへ配布"
+  ansible.builtin.copy:
+    src: "nextjs_app/"
+    dest: "{{ app_base_dir | default('/opt/app') }}/nextjs_app/"
+    mode: '0644'
+    directory_mode: '0755'
+  register: app_source_update_local
+  when: app_source_method | default('local') == 'local'
+
+- name: "app : [アセット配布: Git] GitHubリポジトリからNext.jsアプリソースを取得"
+  ansible.builtin.git:
+    repo: "{{ app_git_repo | default('https://github.com/S-Onno/graduation-project-integrated.git') }}"
+    dest: "{{ app_base_dir | default('/opt/app') }}/nextjs_app"
+    version: "{{ app_git_version | default('main') }}"
+    force: true
+  register: app_source_update_git
+  when: app_source_method | default('local') == 'git'
+
+- name: "app : [更新フラグ統合] アプリソース更新状態の確定"
+  ansible.builtin.set_fact:
+    app_source_changed: "{{ (app_source_update_local.changed | default(false)) or (app_source_update_git.changed | default(false)) }}"
+
+- name: "app : [設定配布] Nginx設定ファイルをServer Bへ同期配布"
+  ansible.builtin.template:
+    src: "nginx.conf.j2"
+    dest: "{{ app_base_dir | default('/opt/app') }}/nginx.conf"
+    mode: '0644'
+  register: app_nginx_conf_update
+
+- name: "app : [テンプレート配布] Docker Compose 定義ファイルの安全配置"
+  ansible.builtin.template:
+    src: app_docker-compose.yml.j2
+    dest: "{{ app_base_dir | default('/opt/app') }}/docker-compose.yml"
+    mode: '0600'
+  no_log: true
+  register: compose_manifest
+
+- name: "app : [SELinuxポリシー] アプリ・DB領域のコンテキスト定義をSELinuxへ事前登録"
+  community.general.sefcontext:
+    target: "{{ app_base_dir | default('/opt/app') }}(/.*)?"
+    setype: container_file_t
+    state: present
+  register: app_sefcontext_res
+
+- name: "app : [SELinux適用] 登録されたコンテキストを実ファイル群へ安全に反映"
+  ansible.builtin.command: "restorecon -R {{ app_base_dir | default('/opt/app') }}"
+  register: app_restorecon_res
+  when: app_sefcontext_res.changed | default(false)
+  changed_when: '"Relabeled" in app_restorecon_res.stdout'
+
+# -----------------------------------------------------------------
+# 4. コンテナ一括デプロイ ＆ ヘルスチェック検証 (完全冪等性保証)
+# -----------------------------------------------------------------
+- name: "app : [状態検査] 稼働中コンテナの状態を事前取得"
+  ansible.builtin.command:
+    cmd: "docker inspect --format {% raw %}'{{.State.Status}}'{% endraw %} nextjs_app"
+  register: nextjs_existing_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: "app : [再構築要否判定] ソース・設定変更またはコンテナ未起動を検知"
+  ansible.builtin.set_fact:
+    app_rebuild_required: "{{ app_source_changed | default(false) or compose_manifest.changed | default(false) or app_nginx_conf_update.changed | default(false) or (nextjs_existing_check.rc != 0) }}"
+
+- name: "app : [ベース取得] Next.js ビルド用ベースイメージ (node:{{ version_image_node | default('22.23.4-alpine') }}) の事前取得"
+  ansible.builtin.command:
+    cmd: "docker pull node:{{ version_image_node | default('22.23.4-alpine') }}"
+  register: node_pull_res
+  until: node_pull_res is not failed
+  retries: 5
+  delay: 6
+  when: app_rebuild_required | bool
+  changed_when: '"Downloaded newer image" in node_pull_res.stdout'
+
+- name: "app : [Composeビルド] Next.js アプリケーションイメージのビルド"
+  ansible.builtin.command:
+    cmd: "docker compose build"
+    chdir: "{{ app_base_dir | default('/opt/app') }}"
+  environment:
+    DOCKER_BUILDKIT: "1"
+    COMPOSE_DOCKER_CLI_BUILD: "1"
+  register: app_build_res
+  async: 900
+  poll: 5
+  when: app_rebuild_required | bool
+  changed_when: '"writing image" in app_build_res.stderr or "naming to" in app_build_res.stderr'
+
+- name: "app : [Composeデプロイ] Next.js ＆ PostgreSQL バックグラウンド起動"
+  ansible.builtin.command:
+    cmd: "docker compose up -d --remove-orphans"
+    chdir: "{{ app_base_dir | default('/opt/app') }}"
+  register: app_compose_res
+  async: 300
+  poll: 5
+  when: app_rebuild_required | bool
+  changed_when: '"Started" in app_compose_res.stdout or "Created" in app_compose_res.stdout or "Recreated" in app_compose_res.stdout or "Started" in app_compose_res.stderr or "Created" in app_compose_res.stderr or "Recreated" in app_compose_res.stderr'
+
+- name: "app : [健全性待機] postgres_db の内部初期化完了（Healthy状態）を検知"
+  ansible.builtin.command:
+    cmd: "docker inspect --format {% raw %}'{{.State.Health.Status}}'{% endraw %} postgres_db"
+  register: db_health_cmd
+  until: db_health_cmd.stdout == "healthy"
+  retries: 30
+  delay: 2
+  changed_when: false
+  check_mode: false
+
+
+- name: "app : [健全性待機] nextjs_app コンテナの稼働開始（running状態）を検知"
+  ansible.builtin.command:
+    cmd: "docker inspect --format {% raw %}'{{.State.Status}}'{% endraw %} nextjs_app"
+  register: nextjs_status_cmd
+  until: nextjs_status_cmd.stdout == "running"
+  retries: 20
+  delay: 1
+  changed_when: false
+  check_mode: false
+
+- name: "app : [ウォームアップ待機] Webプロキシの疎通準備完了を確認 (HTTP 80 / HTTPS 443)"
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ item }}"
+    state: started
+    delay: 0
+    timeout: 30
+  loop:
+    - "{{ app_http_port | default(80) }}"
+    - "{{ app_https_port | default(443) }}"
+
+- name: "app : [ウォームアップ実行: HTTP] HTTP(80) から HTTPS(443) への 301 リダイレクト検証"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ app_http_port | default(80) }}/"
+    method: GET
+    status_code: [301, 302, 307]
+    follow_redirects: none
+  register: warmup_http_result
+  until: warmup_http_result.status in [301, 302, 307]
+  retries: 15
+  delay: 2
+  changed_when: false
+  check_mode: false
+
+- name: "app : [ウォームアップ実行: HTTPS] HTTPS(443) への暗号化通信および Next.js レスポンス検証"
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ app_https_port | default(443) }}/"
+    method: GET
+    status_code: [200, 307, 308]
+    validate_certs: false
+  register: warmup_https_result
+  until: warmup_https_result.status in [200, 307, 308]
+  retries: 15
+  delay: 2
+  changed_when: false
+  check_mode: false
