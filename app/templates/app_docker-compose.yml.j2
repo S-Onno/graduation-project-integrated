@@ -1,0 +1,112 @@
+# 冪等性・ハングアップ・SELinux完全対策版
+---
+# [infrastructure-repo-iac-secure] roles/app/templates/app_docker-compose.yml.j2
+# =========================================================================
+# 🎓 卒業制作：Server B アプリケーション統合マニフェスト (Docker Compose V2適合版)
+# =========================================================================
+
+networks:
+  app_frontend_net:
+    driver: bridge
+  app_backend_net:
+    driver: bridge
+
+services:
+  web_server:
+    image: {{ app_nginx_base_image | default(nginx_base_image | default('nginx:' + (version_image_nginx | default('1.30.6-alpine')))) }}
+    container_name: web_server
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "{{ app_http_port | default(80) }}:80"
+      - "{{ app_https_port | default(443) }}:443"
+    environment:
+      TZ: "Asia/Tokyo"
+    volumes:
+      - {{ app_base_dir | default('/opt/app') }}/nginx.conf:/etc/nginx/nginx.conf:ro,Z
+      - {{ app_ssl_dir | default('/opt/app/ssl') }}:/etc/nginx/ssl:ro,Z
+    depends_on:
+      nextjs_app:
+        condition: service_started
+    networks:
+      - app_frontend_net
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ server_b_proxy_cpu_limit | default('0.5') }}"
+          memory: "{{ server_b_proxy_mem_limit | default('256M') }}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "{{ docker_log_max_size | default('10m') }}"
+        max-file: "{{ docker_log_max_file | default('3') }}"
+
+  nextjs_app:
+    build:
+      context: {{ app_base_dir | default('/opt/app') }}/nextjs_app
+      dockerfile: Dockerfile
+      args:
+        NODE_IMAGE: "node:{{ version_image_node | default('22.23.4-alpine') }}"
+    container_name: nextjs_app
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: "Asia/Tokyo"
+      NODE_ENV: "production"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      DATABASE_URL: 'postgresql://postgres:{{ vault_db_root_password | default(none if (is_production | default(false) | bool) else "!g8RvdqtF+XuHNsgZJXK") | mandatory("vault_db_root_password is required in production") | string | urlencode | replace("$", "$$") }}@postgres_db:5432/{{ db_name | default("app_db") }}?schema=public&connection_limit=50'
+      NEXTAUTH_SECRET: '{{ vault_nextauth_secret | default(none if (is_production | default(false) | bool) else "RkHY94HEHoN!dWx!D3De") | mandatory("vault_nextauth_secret is required in production") | replace("$", "$$") }}'
+      NEXTAUTH_URL: '{% if app_nextauth_url is defined and app_nextauth_url %}{{ app_nextauth_url }}{% elif is_production | default(false) | bool %}https://{{ app_domain_name | default("zootask.woodvillage.jp") }}{% else %}https://{{ hostvars["server-b"]["internal_ip"] | default(hostvars["server-b"]["ansible_host"] | default("10.149.245.115")) }}{% endif %}'
+      UV_THREADPOOL_SIZE: "64"
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - app_frontend_net
+      - app_backend_net
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ server_b_app_cpu_limit | default(nextjs_cpu_limit | default('2.0')) }}"
+          memory: "{{ server_b_app_mem_limit | default(nextjs_memory_limit | default('2048M')) }}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "{{ docker_log_max_size | default('10m') }}"
+        max-file: "{{ docker_log_max_file | default('3') }}"
+
+  postgres_db:
+    image: "postgres:{{ version_image_postgres_app | default('16.15-alpine') }}"
+    container_name: postgres_db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: "Asia/Tokyo"
+      POSTGRES_USER: 'postgres'
+      POSTGRES_PASSWORD: '{{ vault_db_root_password | default(none if (is_production | default(false) | bool) else "!g8RvdqtF+XuHNsgZJXK") | mandatory("vault_db_root_password is required in production") | replace("$", "$$") }}'
+      POSTGRES_DB: '{{ db_name | default("app_db") }}'
+    command: postgres -c max_connections={{ app_pg_max_connections | default(300) }} -c shared_buffers=256MB
+    volumes:
+      - {{ app_pg_data_path | default('/opt/app/postgres_data') }}:/var/lib/postgresql/data:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d {{ db_name | default('app_db') }}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - app_backend_net
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ server_b_db_cpu_limit | default(app_pg_cpu_limit | default('1.5')) }}"
+          memory: "{{ server_b_db_mem_limit | default(app_pg_memory_limit | default('1536M')) }}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "{{ docker_log_max_size | default('10m') }}"
+        max-file: "{{ docker_log_max_file | default('3') }}"
