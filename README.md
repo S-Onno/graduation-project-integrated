@@ -1,262 +1,220 @@
 # タスク×動物育成アプリ
 
 タスク管理にゲーム性（動物育成）を組み合わせた卒業制作アプリです。
-タスクを完了すると動物を獲得・育成でき、動物箱（Zoo）への配置やエリア解放が進みます。
+タスクを完了すると動物を獲得・育成でき、動物園（Zoo）への配置やエリア解放が進みます。
 
 ## 技術スタック
 
-| 分類 | 技術 |
-|---|---|
-| フロントエンド/バックエンド | Next.js 15 (App Router) / React 19 / Node.js 22 |
-| データベース | PostgreSQL 16 (`postgres:16-alpine`) |
-| 認証 | NextAuth.js |
-| ORM | Prisma 7 |
-| ゲーム描画 | PixiJS (`@pixi/react`) |
-| インフラ | Docker Compose / Nginx |
+| 分類 | 技術 | バージョン |
+|---|---|---|
+| フロントエンド/バックエンド | Next.js (App Router) / React | 16.4.3 / 19.3.1 |
+| ランタイム | Node.js | 22.23.4 |
+| データベース | PostgreSQL | 16.15 |
+| 認証 | NextAuth.js（Credentials・JWT） | 4.24.15 |
+| ORM | Prisma | 7.10.1 |
+| ゲーム描画 | PixiJS (`@pixi/react`) | 8 系 |
+| リバースプロキシ | Nginx | 1.30.6 |
+| インフラ | Docker Compose / Ansible | ― |
+
+Node.js・PostgreSQL・Nginx のバージョンは `app/defaults/main.yml`、npm パッケージのバージョンは `app/files/nextjs_app/package.json` が正です。
 
 ## ディレクトリ構成
 
 ```
 graduation-project-integrated/
-├── app/                            # Ansible Role (roles/app) 対応ディレクトリ
-│   ├── defaults/                   # Ansible デフォルト変数定義
-│   │   └── main.yml
-│   ├── files/                      # 静的配布ファイル群
-│   │   ├── nextjs_app/             # ★ Next.js アプリ本体（開発作業ディレクトリ）
-│   │   └── nginx.conf              # Nginx リバースプロキシ設定
-│   ├── tasks/                      # Ansible デプロイタスク定義
-│   │   └── main.yml
-│   └── templates/                  # テンプレート・Docker Compose 設定群
-│       ├── .env.example            # Compose 用環境変数テンプレート
-│       ├── .env.example.j2         # Ansible 用環境変数テンプレート
-│       ├── app_docker-compose.yml   # Docker Compose 定義
-│       ├── app_docker-compose.yml.j2# Ansible 用 Compose テンプレート
-│       ├── nginx.conf.j2           # Ansible 用 Nginx テンプレート
-│       └── postgres_db_data/       # DB実データ保存領域（git管理外）
-├── .gitignore                      # リポジトリ全体用除外設定
-└── README.md                       # プロジェクト仕様書・手順書
+├── app/                                  # Ansible Role (roles/app) 対応ディレクトリ
+│   ├── defaults/
+│   │   └── main.yml                      # Ansible デフォルト変数（イメージのバージョン等）    [インフラ班]
+│   ├── files/
+│   │   ├── nextjs_app/                   # ★ Next.js アプリ本体（開発作業ディレクトリ）       [開発班]
+│   │   └── nginx.conf                    # ローカル用 Nginx 設定                              [開発班]
+│   ├── tasks/
+│   │   └── main.yml                      # Ansible デプロイタスク                             [インフラ班]
+│   └── templates/
+│       ├── .env.example                  # 環境変数テンプレート                               [インフラ班]
+│       ├── app_docker-compose.yml        # ローカル用 Docker Compose                          [開発班]
+│       ├── app_docker-compose.yml.j2     # サーバー用 Compose テンプレート（Ansible）          [インフラ班]
+│       ├── nginx.conf.j2                 # サーバー用 Nginx テンプレート（Ansible）            [インフラ班]
+│       └── postgres_db_data/             # ローカル DB の実データ（git 管理外）
+├── .gitignore
+└── README.md                             # 本ファイル                                         [インフラ班]
 ```
-具体的なディレクトリ構成については下記を参照（前期での情報：最新は上記を参照）
-https://app.notion.com/p/_-36b8ff38ca3980a6a0f7fb2f59dfde6d?source=copy_link
 
+### 編集ルール
 
-## 前提条件
-- app/files/nextjs_app/ 配下のみ `編集可`
-- Node.js 22 系 / npm
-- Docker / Docker Compose v2
-- Git
+- 開発班が編集するのは `app/files/nextjs_app/` 配下と、ローカル用ファイル（`app/files/nginx.conf`、`app/templates/app_docker-compose.yml`）のみ。
+- `.j2`、`app/defaults/`、`app/tasks/` はインフラ班が管理する。
+- ディレクトリ構成や管理者を変えるときは、同じ PR でこの README も更新する。
+- `app/files/nextjs_app/src` 以外を変更する PR は、インフラ班もレビューに入れる。
+
+### サーバーへの反映の仕組み
+
+サーバーへの配布はインフラ班のリポジトリ（Ansible）が行います。
+
+1. このリポジトリの main を clone する。
+2. `app/files/nextjs_app/` だけをサーバーの `/opt/app/nextjs_app/` にコピーする。
+3. Dockerfile と `.dockerignore` は、インフラ班リポジトリの版で上書きする。
+4. 環境変数は Ansible vault から生成し、ビルドして起動する。
+
+そのため、`app/files/nextjs_app/` の外にあるファイル（ローカル用の compose や nginx 設定など）はサーバーでは使われません。また、ローカルとサーバーでは Dockerfile が異なります。
 
 ---
 
-## 1. ローカル開発環境のセットアップ（Next.jsアプリ単体）
+## 1. ローカル開発環境のセットアップ（`npm run dev`）
 
-DBコンテナだけDockerで動かし、Next.jsアプリは `npm run dev` で起動する開発スタイルです。
+DB だけ Docker で動かし、Next.js は `npm run dev` で起動する開発スタイルです。コードの変更がすぐ画面に反映されます。
 
 ### 1-1. リポジトリの取得
 
 ```bash
 git clone <このリポジトリのURL>
-cd graduation-project-docker-create/files/nextjs_app
+cd graduation-project-integrated
 ```
 
-### 1-2. 依存パッケージのインストール
-
-
-6/10時点
-```bash
-npm install
-```
-(node.jsのインタビューが必要な場合は、下記も実行してください。)
-```bash
-curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
-セットアップのなにか
-sudo dnf install -y nodejs
-nodeのインストール
-そのあとに
-npm install
-```
-
-### 1-3. 環境変数ファイルの作成
+### 1-2. 環境変数ファイルの作成
 
 ```bash
+cd app/files/nextjs_app
 cp .env.example .env
 ```
 
-`.env` を開き、以下を設定します。
+`.env` を開き、以下を設定します。`.env` は git 管理外です。**値をリポジトリやドキュメントに書かないでください。**
 
-| 変数 | 説明 | 例 |
+| 変数 | 説明 | ローカルでの値 |
 |---|---|---|
-| `DATABASE_URL` | PostgreSQL接続文字列 | `postgresql://postgres:postgres@localhost:5432/app_db?schema=public` |
-| `NEXTAUTH_SECRET` | NextAuthのセッション暗号化キー | `openssl rand -base64 32` の出力をそのまま貼り付け |
-| `NEXTAUTH_URL` | アプリのURL（ローカル開発時） | `http://localhost:3000` |
+| `DATABASE_URL` | PostgreSQL 接続文字列 | `postgresql://postgres:postgres@localhost:5432/app_db?schema=public` |
+| `NEXTAUTH_SECRET` | ログイン情報（Cookie）の署名鍵 | 下のコマンドで各自生成した値 |
+| `NEXTAUTH_URL` | アプリの URL | `http://localhost:3000` |
 
 ```bash
-# NEXTAUTH_SECRET の生成例
+# NEXTAUTH_SECRET の生成
 openssl rand -base64 32
 ```
 
-.envの中身（コピペ用）
-```bash
-# ============================================================
-# files\nextjs_app\.env
-# ローカル開発用 環境変数
-# ※ このファイルはGit管理対象外 (.gitignore で除外)
-# ============================================================
-
-# --- Database ---
-# ローカルで postgres:16-alpine を起動している場合は localhost:5432
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/app_db?schema=public"
-
-# --- NextAuth.js ---
-NEXTAUTH_SECRET="Qz+QChHEkWWTOO2w4/YPRnRNrcM2yla552loudN3ax8="
-NEXTAUTH_URL="http://localhost:3000"
-
-```
-
-.envの中身（コピペ用）
-```bash
-# files\nextjs_app\.env.example
-
-# --- Database ---
-# ローカルで postgres:16-alpine を起動している場合は localhost:5432
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/app_db?schema=public"
-
-# --- NextAuth.js ---
-NEXTAUTH_SECRET="Qz+QChHEkWWTOO2w4/YPRnRNrcM2yla552loudN3ax8="
-NEXTAUTH_URL="http://localhost:3000"
-
-```
-
-
-### 1-4. PostgreSQLの起動（ローカル検証用）
+### 1-3. PostgreSQL の起動（リポジトリの直下で実行）
 
 ```bash
-docker run -d --name local_postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=app_db \
-  -p 5432:5432 \
-  postgres:16-alpine
+docker compose -f app/templates/app_docker-compose.yml up -d postgres_db
 ```
 
-`.env` の `DATABASE_URL` のユーザー/パスワード/DB名がこのコマンドと一致していることを確認してください。
-
-### 1-5. Prismaのセットアップ
+### 1-4. 依存パッケージと Prisma のセットアップ（`app/files/nextjs_app` で実行）
 
 ```bash
-# Prisma Clientの生成
-npx prisma generate
-
-# スキーマをDBに反映（テーブル作成）
-npx prisma db push
-
-# （任意）初期データの投入
-npx prisma db seed
+npm ci                          # package-lock.json どおりにインストール
+npx --no-install prisma generate       # Prisma Client の生成（src/generated/prisma）
+npx --no-install prisma migrate deploy # マイグレーションを DB に適用（テーブル作成）
+npx --no-install prisma db seed        # 初期データ（エリア 4・動物 12）を投入
 ```
 
-### 1-6. 開発サーバーの起動
+- `npx` で「Need to install the following packages」と聞かれたら `n` で断ってください。プロジェクトのバージョンがまだ入っていない合図です（先に `npm ci` を実行）。
+- スキーマを変更したときは `npx prisma migrate dev --name <変更内容>` でマイグレーションファイルを作り、一緒にコミットします。
+
+### 1-5. 開発サーバーの起動
 
 ```bash
 npm run dev
 ```
 
-ブラウザで [http://localhost:3000](http://localhost:3000) にアクセスして動作確認してください。
+ブラウザで [http://localhost:3000](http://localhost:3000) にアクセスします。
+
+- Next.js 16 は起動時に `tsconfig.json` や `next-env.d.ts` を自動で書き換え、`AGENTS.md` を作ることがあります。**これらはコミットしないでください。**
 
 ---
 
-## 2. Docker Composeによるフル環境構築（Nginx + Next.js + PostgreSQL）
+## 2. Docker Compose によるフル環境（Nginx + Next.js + PostgreSQL）
 
-3コンテナ構成（Nginx・Next.js・PostgreSQL）を一括起動する手順です。**Section 1（ローカル開発環境のセットアップ）の完了後**に行ってください。
+3 コンテナをまとめて起動し、本番に近い形（ビルド済みのアプリ + Nginx）で確認する手順です。コマンドはすべて**リポジトリの直下**で実行します。
 
-### 2-1. 環境変数ファイルの作成
-
-```bash
-cp templates/.env.example templates/.env
-```
-
-ローカル（localhost）で動かす場合はそのままでOKです。別のIPやサーバーで動かす場合は `templates/.env` を開き、`NEXTAUTH_URL` を書き換えてください。
-
-```env
-# 例: サーバーのIPが 192.168.1.50 の場合
-NEXTAUTH_URL=http://192.168.1.50:8080
-```
-
-### 2-2. コンテナの起動（ビルド込み）
+### 2-1. 起動（ビルド込み）
 
 ```bash
-docker compose -f templates/app_docker-compose.yml --env-file templates/.env up -d --build
+docker compose -f app/templates/app_docker-compose.yml up -d --build
 ```
 
-### 2-3. コンテナの状態確認
+起動時にマイグレーションが自動で適用されます。初期データ（seed）は自動では入らないため、DB を新しく作ったときは「1-4」の `prisma db seed` を一度実行してください。
+
+### 2-2. 状態の確認
 
 ```bash
-docker compose -f templates/app_docker-compose.yml ps
+docker compose -f app/templates/app_docker-compose.yml ps
 ```
 
-期待する結果：3つすべてが `running` で、`postgres_db` が `healthy`
+期待する結果：3 つすべてが起動中で、`postgres_db` が `healthy`
 
 ```
 NAME          STATUS
-web_server    running
-nextjs_app    running
-postgres_db   running (healthy)
+web_server    Up
+nextjs_app    Up
+postgres_db   Up (healthy)
 ```
 
-### 2-4. ログ確認（Prisma + Next.js の起動ログ）
+### 2-3. ログの確認
 
 ```bash
-docker compose -f templates/app_docker-compose.yml logs --tail=50 nextjs_app
+docker compose -f app/templates/app_docker-compose.yml logs --tail=50 nextjs_app
 ```
 
 確認ポイント：
 
-- `The database is already in sync with the Prisma schema.` が出ているか
-- `✓ Ready in XXXms` が出ているか
+- `No pending migrations to apply.` または `All migrations have been successfully applied.` が出ているか
+- `✓ Ready` が出ているか
 
-### 2-5. アプリへの疎通確認
+### 2-4. アクセス
 
-```bash
-curl -I http://localhost:8080
-```
+ブラウザで [http://localhost:8080](http://localhost:8080) にアクセスします（ログイン画面が表示されれば OK）。
 
-期待する結果：`HTTP/1.1 200 OK` または `HTTP/1.1 307 Temporary Redirect`（ログインページへのリダイレクト）
+### 2-5. コード変更の反映
 
-### 2-6. DBの死活確認
+ホットリロードはありません。コードを変更したら `--build` 付きで再実行します。
 
 ```bash
-docker exec postgres_db pg_isready -U postgres -d app_db
+docker compose -f app/templates/app_docker-compose.yml up -d --build nextjs_app
 ```
 
-期待する結果：`accepting connections`
-
-### 2-7. コード変更を反映する
-
-コードを変更した場合は `--build` 付きで再実行します（ホットリロードではなく、コード変更ごとに再ビルドする運用です）。
+### 2-6. 停止・初期化
 
 ```bash
-docker compose -f templates/app_docker-compose.yml --env-file templates/.env up -d --build nextjs_app
+# 停止（DB のデータは残る）
+docker compose -f app/templates/app_docker-compose.yml down
+
+# DB を空にして作り直す（注意: データが消えます。必要なら先にバックアップ）
+docker exec postgres_db pg_dump -U postgres -d app_db > ~/zootask_db_backup.sql
+docker compose -f app/templates/app_docker-compose.yml down
+docker run --rm -v "$PWD/app/templates":/t alpine:3.22 rm -rf /t/postgres_db_data
 ```
 
-### 2-8. 停止・後片付け
+DB のデータフォルダは Postgres の権限で作られるため、通常の `rm` では削除できません。上のように Docker 経由で削除します。
 
-```bash
-# コンテナ停止
-docker compose -f templates/app_docker-compose.yml down
+### 2-7. PR を出す前の確認（推奨）
 
-# DBデータも含めて完全に削除する場合（注意: データが消えます）
-docker compose -f templates/app_docker-compose.yml down
-sudo rm -rf templates/postgres_db_data/*
-```
+サーバーは空の DB から構築されるため、PR の前に一度「2-6」で DB を空にし、「2-1」から起動して、アカウント作成・ログイン・タスク作成ができることを確認してください。
+
+---
+
+## 3. 開発の進め方
+
+1. 最新の `develop` から作業ブランチを作る。
+   ```bash
+   git switch develop
+   git pull origin develop
+   git switch -c feature/<作業名>
+   ```
+2. 作業してコミットし、push する。
+3. GitHub で PR を作る。**マージ先（base）が `develop` になっているか必ず確認**する（初期状態は `main`）。
+4. develop で確認できたら、`develop` → `main` の PR を作る。main はサーバーに反映される。
 
 ---
 
 ## 環境変数まとめ
 
-| ファイル | 用途 | git管理 |
+| ファイル | 用途 | git 管理 |
 |---|---|---|
-| `files/nextjs_app/.env` | ローカル開発（`npm run dev`）用 | ❌ 除外 |
-| `files/nextjs_app/.env.example` | 上記のテンプレート | ✅ 含む |
-| `templates/.env` | Docker Compose起動時の変数（`NEXTAUTH_URL`等） | ❌ 除外 |
-| `templates/.env.example` | 上記のテンプレート | ✅ 含む |
+| `app/files/nextjs_app/.env` | ローカル開発（`npm run dev`、Prisma コマンド）用 | 除外 |
+| `app/files/nextjs_app/.env.example` | 上記のテンプレート | 含む |
+| `app/templates/.env.example` | 環境変数テンプレート | 含む |
+
+- `app/templates/app_docker-compose.yml` に書かれているパスワードと `NEXTAUTH_SECRET` は**ローカル専用のダミー値**です。サーバーでは使用しません。
+- サーバーのパスワード・シークレットは、インフラ班が Ansible vault で管理します。
 
 ---
 
@@ -264,8 +222,11 @@ sudo rm -rf templates/postgres_db_data/*
 
 | 症状 | 対処 |
 |---|---|
-| `npx prisma db push` が `Connection refused` で失敗する | PostgreSQLコンテナが起動完了しているか確認（`docker compose ps` でhealthyか確認） |
-| ログイン後すぐセッションが切れる / 認証エラー | `NEXTAUTH_URL` が実際にアクセスしているURL・ポートと一致しているか確認 |
-| `npx prisma generate` 実行後も型エラーが出る | `src/generated/prisma` が生成されているか確認し、エディタを再起動 |
-| `docker compose up` 時にPostgreSQLが `port is already allocated` で失敗する | セクション1の `local_postgres` コンテナ（ポート5432）が起動中だと衝突します。`docker stop local_postgres` で停止してから実行してください |
-| WSL環境で `npm install` が `UNC パスはサポートされません` 等のエラーで失敗する | WindowsのPowerShell/CMDから実行している可能性があります。WSL（Bash）のターミナルから `/home/...` のLinuxパスで実行してください |
+| `npx prisma migrate deploy` が `Connection refused` で失敗する | PostgreSQL コンテナが起動しているか確認する（`docker compose -f app/templates/app_docker-compose.yml ps` で `healthy` か） |
+| `npx prisma ...` で「Need to install the following packages」と聞かれる | `n` で断り、`app/files/nextjs_app` で `npm ci` を実行してから再実行する |
+| `prisma db seed` が `Cannot find module '../src/generated/prisma/client'` で失敗する | 先に `npx --no-install prisma generate` を実行する |
+| `http://localhost:8080/` を開くとログイン画面ではなく `/tasks` に移る | DB を作り直す前のログイン情報（Cookie）が残っている。ログアウトするか、ブラウザの Cookie（`next-auth.session-token`）を削除する |
+| ログイン後すぐセッションが切れる / 認証エラー | `NEXTAUTH_URL` が実際にアクセスしている URL・ポートと一致しているか確認する |
+| `prisma generate` 後も型エラーが出る | `src/generated/prisma` が生成されているか確認し、エディタを再起動する |
+| `docker compose up` で `port is already allocated` | 5432 や 8080 を使う別のコンテナが動いている。`docker ps` で確認して停止する |
+| WSL で `npm install` が `UNC パスはサポートされません` 等で失敗する | Windows の PowerShell/CMD ではなく、WSL（Bash）のターミナルから `/home/...` のパスで実行する |
