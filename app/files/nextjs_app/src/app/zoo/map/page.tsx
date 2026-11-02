@@ -36,6 +36,8 @@ interface AnimalDef {
   name: string
   emoji: string
   spriteJson?: string // スプライトのJSONファイルのパス(例: '/assets/sprites/crocodile/sprite-sheet.json')
+  zoom?: number // スプライトの表示倍率。なければ SPRITE_ZOOM
+  footPadding?: number // スプライト画像の下側の余白(元画像のpx)。なければ FOOT_PADDING
 }
 
 interface AreaDef {
@@ -108,7 +110,13 @@ const AREA_DEFS: AreaDef[] = [
     fallback: 'linear-gradient(#9fd4ff 0%, #9fd4ff 15%, #e7c867 15%, #d9b04a 100%)',
     animals: [
       { name: 'ライオン', emoji: '🦁' },
-      { name: 'ゾウ', emoji: '🐘' },
+      {
+        name: 'ゾウ',
+        emoji: '🐘',
+        spriteJson: '/assets/sprites/elephant/baby-walk.json',
+        zoom: 1, // 1コマが128pxと大きいので等倍
+        footPadding: 5,
+      },
       { name: 'キリン', emoji: '🦒' },
     ],
   },
@@ -336,9 +344,10 @@ function WanderingAnimal({ animal }: { animal: AnimalDef }) {
 
   if (!pos) return null
 
-  const boxW = sheet ? sheet.frameW * SPRITE_ZOOM : EMOJI_BOX * SPRITE_ZOOM
-  const boxH = sheet ? sheet.frameH * SPRITE_ZOOM : EMOJI_BOX * SPRITE_ZOOM
-  const footPad = sheet ? FOOT_PADDING * SPRITE_ZOOM : 0
+  const zoom = animal.zoom ?? SPRITE_ZOOM
+  const boxW = sheet ? sheet.frameW * zoom : EMOJI_BOX * SPRITE_ZOOM
+  const boxH = sheet ? sheet.frameH * zoom : EMOJI_BOX * SPRITE_ZOOM
+  const footPad = sheet ? (animal.footPadding ?? FOOT_PADDING) * zoom : 0
 
   return (
     <div
@@ -357,7 +366,7 @@ function WanderingAnimal({ animal }: { animal: AnimalDef }) {
       {/* 左に歩くときは、左右を反転(画像は右向き) */}
       <div className="zoo-wanderer-body" style={{ transform: facingLeft ? 'scaleX(-1)' : 'none' }}>
         {sheet ? (
-          <SpriteView sheet={sheet} zoom={SPRITE_ZOOM} playing={moving} />
+          <SpriteView sheet={sheet} zoom={zoom} playing={moving} />
         ) : (
           <span
             className={`zoo-wanderer-emoji${moving ? ' moving' : ''}`}
