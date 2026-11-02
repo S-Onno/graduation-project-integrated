@@ -8,7 +8,7 @@ import { signOut } from 'next-auth/react'
 const TASK_NAV = [
   { href: '/tasks', label: 'タスク管理', icon: '📋' },
 ]
-const ZOO_NAV = { href: '/zoo', label: '動物園', icon: '🦁' }
+const ZOO_NAV = { href: '/zoo/map', label: '動物園', icon: '🦁' }
 const NAV = [...TASK_NAV, ZOO_NAV]
 
 export function AppShell({ children, fullBleed = false }: { children: React.ReactNode; fullBleed?: boolean }) {
