@@ -211,7 +211,7 @@ const DEFAULT_WALK_AREA: WalkPoint[] = [
   { x: 92, y: 92 },
   { x: 8, y: 92 },
 ]
-const SHOW_WALK_AREA = true // true にすると、歩ける範囲を線で表示する(座標の調整用)
+const SHOW_WALK_AREA = false // true にすると、歩ける範囲を線で表示する(座標の調整用)
 
 function rand(min: number, max: number): number {
   return Math.random() * (max - min) + min
