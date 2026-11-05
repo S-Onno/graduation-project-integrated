@@ -60,9 +60,9 @@ graduation-project-integrated/
 
 ---
 
-## 1. ローカル開発環境のセットアップ（`npm run dev`）
+## 1. ローカル開発環境のセットアップ
 
-DB だけ Docker で動かし、Next.js は `npm run dev` で起動する開発スタイルです。コードの変更がすぐ画面に反映されます。
+DB を Docker で起動し、依存パッケージと Prisma を準備する手順です。動作確認は「2」の Docker で行います。
 
 ### 1-1. リポジトリの取得
 
@@ -225,6 +225,7 @@ DB のデータフォルダは Postgres の権限で作られるため、通常�
 | `npx prisma migrate deploy` が `Connection refused` で失敗する | PostgreSQL コンテナが起動しているか確認する（`docker compose -f app/templates/app_docker-compose.yml ps` で `healthy` か） |
 | `npx prisma ...` で「Need to install the following packages」と聞かれる | `n` で断り、`app/files/nextjs_app` で `npm ci` を実行してから再実行する |
 | `prisma db seed` が `Cannot find module '../src/generated/prisma/client'` で失敗する | 先に `npx --no-install prisma generate` を実行する |
+| 起動直後に `502 Bad Gateway` が出る | アプリの準備中に出るもので、数秒待って再読み込みする。続くときは `docker logs --tail 40 nextjs_app` でログを確認する |
 | `http://localhost:8080/` を開くとログイン画面ではなく `/tasks` に移る | DB を作り直す前のログイン情報（Cookie）が残っている。ログアウトするか、ブラウザの Cookie（`next-auth.session-token`）を削除する |
 | ログイン後すぐセッションが切れる / 認証エラー | `NEXTAUTH_URL` が実際にアクセスしている URL・ポートと一致しているか確認する |
 | `prisma generate` 後も型エラーが出る | `src/generated/prisma` が生成されているか確認し、エディタを再起動する |
