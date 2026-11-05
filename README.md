@@ -109,7 +109,7 @@ npx --no-install prisma db seed        # 初期データ（エリア 4・動物 
 - `npx` で「Need to install the following packages」と聞かれたら `n` で断ってください。プロジェクトのバージョンがまだ入っていない合図です（先に `npm ci` を実行）。
 - スキーマを変更したときは `npx prisma migrate dev --name <変更内容>` でマイグレーションファイルを作り、一緒にコミットします。
 
-### 1-5. 開発サーバーの起動
+### 1-5. 開発サーバーの起動（スキップしてよい。Docker上で動作確認をして。）
 
 ```bash
 npm run dev
