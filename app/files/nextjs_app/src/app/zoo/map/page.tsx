@@ -1,9 +1,16 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, RefObject } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import {
+  getVisibleArea,
+  isInVisibleArea,
+  pickStandingPoint,
+  pickWalkTarget,
+} from '@/lib/zooWalk'
+import type { ImageSize, WalkPoint } from '@/lib/zooWalk'
 
 /* ============================================================
  * 動物園画面(1エリアを壁紙つきで表示し、動物が歩き回る)
@@ -46,6 +53,8 @@ interface AreaDef {
   emoji: string
   unlockHint: string
   wallpaper?: string // 壁紙の画像。なければ fallback の色を使う
+  wallpaperSize?: ImageSize // 壁紙の画像の大きさ(px)。wallpaper を指定するときは必須
+  walkArea?: WalkPoint[] // 動物の足元が歩ける範囲(壁紙に対する%)。なければ DEFAULT_WALK_AREA
   fallback: string // 壁紙がないエリア用の背景(CSSのグラデーション)
   animals: AnimalDef[]
 }
@@ -107,6 +116,28 @@ const AREA_DEFS: AreaDef[] = [
     emoji: '🌵',
     unlockHint: 'ジャングルで大人3匹育成',
     wallpaper: '/assets/areas/savanna/background.png',
+    wallpaperSize: { w: 1376, h: 768 },
+    // 木・茂み・岩を避けて、地面の部分を囲む(左上から時計回り)
+    walkArea: [
+      { x: 2.2, y: 41.7 },
+      { x: 30.5, y: 39.7 },
+      { x: 50.9, y: 37.1 },
+      { x: 65.4, y: 35.2 },
+      { x: 79.2, y: 41.7 },
+      { x: 85.0, y: 44.9 },
+      { x: 86.5, y: 61.2 },
+      { x: 97.4, y: 65.1 },
+      { x: 97.4, y: 74.9 },
+      { x: 85.8, y: 80.7 },
+      { x: 77.0, y: 88.5 },
+      { x: 71.2, y: 96.4 },
+      { x: 39.2, y: 97.0 },
+      { x: 38.5, y: 88.5 },
+      { x: 34.2, y: 80.7 },
+      { x: 25.4, y: 74.2 },
+      { x: 10.9, y: 67.1 },
+      { x: 2.2, y: 65.8 },
+    ],
     fallback: 'linear-gradient(#9fd4ff 0%, #9fd4ff 15%, #e7c867 15%, #d9b04a 100%)',
     animals: [
       { name: 'ライオン', emoji: '🦁' },
@@ -173,11 +204,14 @@ const SPRITE_ZOOM = 3 // スプライトを何倍にして表示するか(ドッ
 const FOOT_PADDING = 3 // スプライト画像の下側の余白(元画像のpx)。足元を地面に合わせるため
 const EMOJI_BOX = 32 // 絵文字で表示するときの大きさ(×SPRITE_ZOOM)
 const WALK_SPEED_PX = 60 // 歩く速さ(1秒あたりのpx)
-// 動物が歩き回れる範囲(画面に対する%)。壁紙の地面の部分に合わせる
-const WALK_X_MIN = 8
-const WALK_X_MAX = 92
-const WALK_Y_MIN = 48
-const WALK_Y_MAX = 92
+// walkArea がないエリアで歩き回れる範囲(画面に対する%)
+const DEFAULT_WALK_AREA: WalkPoint[] = [
+  { x: 8, y: 48 },
+  { x: 92, y: 48 },
+  { x: 92, y: 92 },
+  { x: 8, y: 92 },
+]
+const SHOW_WALK_AREA = true // true にすると、歩ける範囲を線で表示する(座標の調整用)
 
 function rand(min: number, max: number): number {
   return Math.random() * (max - min) + min
@@ -295,33 +329,82 @@ function SpriteView({
 
 // ===== 歩き回る動物 =====
 // 「止まる → 行き先を決める → 歩く → 止まる」を繰り返す。
-function WanderingAnimal({ animal }: { animal: AnimalDef }) {
+function WanderingAnimal({
+  animal,
+  def,
+  sceneRef,
+}: {
+  animal: AnimalDef
+  def: AreaDef
+  sceneRef: RefObject<HTMLDivElement | null>
+}) {
   const sheet = useSpriteSheet(animal.spriteJson)
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+  const [pos, setPos] = useState<WalkPoint | null>(null)
   const [moving, setMoving] = useState(false)
   const [facingLeft, setFacingLeft] = useState(false)
   const [travelMs, setTravelMs] = useState(0)
-  const posRef = useRef({ x: 50, y: 70 })
+  const bodyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
+    const walkArea = def.walkArea ?? DEFAULT_WALK_AREA
+    let target: WalkPoint = walkArea[0] // いまの行き先(止まっているときは、いまいる場所)
+    let trip: { from: WalkPoint; startedAt: number; duration: number } | null = null
 
-    // 最初の位置(画面ごとにランダム)
-    const start = { x: rand(WALK_X_MIN, WALK_X_MAX), y: rand(WALK_Y_MIN, WALK_Y_MAX) }
-    posRef.current = start
-    setPos(start)
+    const measure = () => {
+      const scene = sceneRef.current?.getBoundingClientRect()
+      const body = bodyRef.current?.getBoundingClientRect()
+      return getVisibleArea(
+        scene?.width ?? window.innerWidth,
+        scene?.height ?? window.innerHeight,
+        def.wallpaperSize,
+        body?.width ?? EMOJI_BOX * SPRITE_ZOOM,
+        body?.height ?? EMOJI_BOX * SPRITE_ZOOM,
+      )
+    }
+
+    // 歩いている途中でも、いま実際にいる場所を返す
+    const currentPos = (): WalkPoint => {
+      if (!trip) return target
+      const t = Math.min(1, (performance.now() - trip.startedAt) / trip.duration)
+      return {
+        x: trip.from.x + (target.x - trip.from.x) * t,
+        y: trip.from.y + (target.y - trip.from.y) * t,
+      }
+    }
+
+    const place = (point: WalkPoint) => {
+      target = point
+      trip = null
+      setMoving(false)
+      setPos(point)
+    }
+
+    const restThenWalk = () => {
+      timer = setTimeout(walk, rand(1000, 4000))
+    }
 
     const walk = () => {
       if (cancelled) return
-      const from = posRef.current
-      const to = { x: rand(WALK_X_MIN, WALK_X_MAX), y: rand(WALK_Y_MIN, WALK_Y_MAX) }
-      const dxPx = ((to.x - from.x) / 100) * window.innerWidth
-      const dyPx = ((to.y - from.y) / 100) * window.innerHeight
+      const area = measure()
+      const from = currentPos()
+      const to = pickWalkTarget(from, walkArea, area)
+
+      if (!to) {
+        // 行ける場所がなければ休む。画面の外にいるときだけ、見える場所へ移す
+        place(isInVisibleArea(from, area) ? from : (pickStandingPoint(walkArea, area) ?? from))
+        restThenWalk()
+        return
+      }
+
+      const dxPx = ((to.x - from.x) / 100) * area.worldW
+      const dyPx = ((to.y - from.y) / 100) * area.worldH
       const distance = Math.hypot(dxPx, dyPx)
       const duration = Math.max(800, (distance / WALK_SPEED_PX) * 1000)
 
-      posRef.current = to
+      target = to
+      trip = { from, startedAt: performance.now(), duration }
       if (Math.abs(dxPx) > 4) setFacingLeft(dxPx < 0)
       setTravelMs(duration)
       setPos(to)
@@ -330,17 +413,29 @@ function WanderingAnimal({ animal }: { animal: AnimalDef }) {
       // 着いたら止まって、しばらくしてからまた歩く
       timer = setTimeout(() => {
         if (cancelled) return
+        trip = null
         setMoving(false)
-        timer = setTimeout(walk, rand(1000, 4000))
+        restThenWalk()
       }, duration)
     }
 
+    // 画面の大きさや向きが変わって行き先が見えなくなったら、すぐ見える場所へ歩き直す
+    const handleResize = () => {
+      if (isInVisibleArea(target, measure())) return
+      if (timer) clearTimeout(timer)
+      walk()
+    }
+
+    // 最初の位置(画面ごとにランダム)
+    place(pickStandingPoint(walkArea, measure()) ?? walkArea[0])
     timer = setTimeout(walk, rand(300, 2500))
+    window.addEventListener('resize', handleResize)
     return () => {
       cancelled = true
       if (timer) clearTimeout(timer)
+      window.removeEventListener('resize', handleResize)
     }
-  }, [])
+  }, [def, sceneRef])
 
   if (!pos) return null
 
@@ -351,6 +446,7 @@ function WanderingAnimal({ animal }: { animal: AnimalDef }) {
 
   return (
     <div
+      ref={bodyRef}
       className="zoo-wanderer"
       style={{
         left: `${pos.x}%`,
@@ -383,6 +479,12 @@ function WanderingAnimal({ animal }: { animal: AnimalDef }) {
   )
 }
 
+// 壁紙と動物を同じ箱(ワールド)に入れて、画面サイズが変わってもずれないようにする
+function worldStyle(def: AreaDef): CSSProperties | undefined {
+  if (!def.wallpaperSize) return undefined
+  return { '--zoo-world-aspect': def.wallpaperSize.w / def.wallpaperSize.h } as CSSProperties
+}
+
 function backgroundStyle(def: AreaDef): CSSProperties {
   return {
     backgroundImage: def.wallpaper ? `url(${def.wallpaper}), ${def.fallback}` : def.fallback,
@@ -398,6 +500,7 @@ export default function ZooPage() {
   const [mapOpen, setMapOpen] = useState(false)
   const [previewAll, setPreviewAll] = useState(true) // テスト用: 全エリアを解放した状態で確認する
   const [notice, setNotice] = useState('')
+  const sceneRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
@@ -468,11 +571,30 @@ export default function ZooPage() {
   return (
     <div className="zoo-stage">
       {/* ===== エリアの表示(壁紙 + 歩き回る動物)。エリアを切り替えると作り直される ===== */}
-      <div key={activeDef.type} className="zoo-scene">
-        <div className="zoo-bg" style={backgroundStyle(activeDef)} />
-        {animalsHere.map((animal) => (
-          <WanderingAnimal key={`${activeDef.type}-${animal.name}`} animal={animal} />
-        ))}
+      <div key={activeDef.type} ref={sceneRef} className="zoo-scene">
+        <div
+          className={`zoo-world${activeDef.wallpaperSize ? ' cover' : ''}`}
+          style={worldStyle(activeDef)}
+        >
+          <div className="zoo-bg" style={backgroundStyle(activeDef)} />
+          {SHOW_WALK_AREA && (
+            <svg className="zoo-walk-debug" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon
+                points={(activeDef.walkArea ?? DEFAULT_WALK_AREA)
+                  .map((p) => `${p.x},${p.y}`)
+                  .join(' ')}
+              />
+            </svg>
+          )}
+          {animalsHere.map((animal) => (
+            <WanderingAnimal
+              key={`${activeDef.type}-${animal.name}`}
+              animal={animal}
+              def={activeDef}
+              sceneRef={sceneRef}
+            />
+          ))}
+        </div>
       </div>
 
       {/* ===== 左上: ユーザー情報 ===== */}
@@ -555,7 +677,37 @@ export default function ZooPage() {
         .zoo-scene {
           position: absolute;
           inset: 0;
+          container-type: size;
           animation: zoo-fade 0.4s ease-out;
+        }
+        /* 壁紙と動物を入れる箱。動物の位置はこの箱に対する%で決まる */
+        .zoo-world {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+        }
+        /* 壁紙の縦横比のまま、画面を覆う大きさにして中央に置く(background-size: cover と同じ) */
+        .zoo-world.cover {
+          inset: auto;
+          left: 50%;
+          top: 50%;
+          width: max(100cqw, calc(100cqh * var(--zoo-world-aspect)));
+          aspect-ratio: var(--zoo-world-aspect);
+          transform: translate(-50%, -50%);
+        }
+        .zoo-walk-debug {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 1;
+          pointer-events: none;
+        }
+        .zoo-walk-debug polygon {
+          fill: rgba(0, 200, 255, 0.2);
+          stroke: #00c8ff;
+          stroke-width: 2px;
+          vector-effect: non-scaling-stroke;
         }
         @keyframes zoo-fade {
           from {
