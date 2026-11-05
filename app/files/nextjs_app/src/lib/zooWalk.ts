@@ -30,6 +30,9 @@ const PATH_CHECK_POINTS = 20 // 道筋の上を何か所調べるか
 const WALK_RETRY = 10 // 行き先を選び直す回数
 const STAND_RETRY = 50 // 立つ場所を選び直す回数
 const NAME_LABEL_PX = 24 // 足元の下に出る名前の高さ
+const REACH_CHECK_POINTS = 40 // 指定の場所へ歩くときに、道筋の上を何か所調べるか
+const NUDGE_DIRECTIONS = 8 // 範囲の内側を探す方向の数
+const NUDGE_DISTANCE = 0.5 // 範囲の内側に寄せる距離(%)
 
 function rand(min: number, max: number): number {
   return Math.random() * (max - min) + min
@@ -120,4 +123,87 @@ export function pickWalkTarget(
     if (to && isPathInside(from, to, polygon)) return to
   }
   return null
+}
+
+// 点を範囲の中に収める(すでに中にあれば、そのまま返す)。辺の上の点は判定が揺れるので、少し内側に寄せる
+function nearestInsidePolygon(point: WalkPoint, polygon: WalkPoint[]): WalkPoint {
+  if (isInsidePolygon(point, polygon)) return point
+
+  let nearest = polygon[0]
+  let nearestDistance = Infinity
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[j]
+    const b = polygon[i]
+    const lengthSq = (b.x - a.x) ** 2 + (b.y - a.y) ** 2
+    const t = lengthSq
+      ? Math.max(0, Math.min(1, ((point.x - a.x) * (b.x - a.x) + (point.y - a.y) * (b.y - a.y)) / lengthSq))
+      : 0
+    const candidate = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+    const distance = Math.hypot(candidate.x - point.x, candidate.y - point.y)
+    if (distance < nearestDistance) {
+      nearest = candidate
+      nearestDistance = distance
+    }
+  }
+
+  for (let i = 0; i < NUDGE_DIRECTIONS; i++) {
+    const angle = (i / NUDGE_DIRECTIONS) * Math.PI * 2
+    const nudged = {
+      x: nearest.x + Math.cos(angle) * NUDGE_DISTANCE,
+      y: nearest.y + Math.sin(angle) * NUDGE_DISTANCE,
+    }
+    if (isInsidePolygon(nudged, polygon)) return nudged
+  }
+  return nearest
+}
+
+// タップされた場所から、実際に立てる場所を決める(歩ける範囲の中で、画面に見えている場所)
+export function resolveDestination(
+  tap: WalkPoint,
+  polygon: WalkPoint[],
+  area: VisibleArea,
+): WalkPoint {
+  const clamped = {
+    x: Math.max(area.xMin, Math.min(area.xMax, tap.x)),
+    y: Math.max(area.yMin, Math.min(area.yMax, tap.y)),
+  }
+  const inside = nearestInsidePolygon(clamped, polygon)
+  if (isInVisibleArea(inside, area)) return inside
+
+  // 範囲に寄せたら画面から出てしまったときは、見える場所の中でタップに近い点を選ぶ
+  let best: WalkPoint = inside
+  let bestDistance = Infinity
+  for (let i = 0; i < STAND_RETRY; i++) {
+    const point = pickStandingPoint(polygon, area)
+    if (!point) break
+    const distance = Math.hypot(point.x - tap.x, point.y - tap.y)
+    if (distance < bestDistance) {
+      best = point
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
+// from から to へまっすぐ歩いて、範囲を出る手前の点を返す(出なければ to をそのまま返す)
+export function lastReachablePoint(
+  from: WalkPoint,
+  to: WalkPoint,
+  polygon: WalkPoint[],
+): WalkPoint {
+  let last = from
+  for (let i = 1; i <= REACH_CHECK_POINTS; i++) {
+    const t = i / REACH_CHECK_POINTS
+    const point = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }
+    if (!isInsidePolygon(point, polygon)) return last
+    last = point
+  }
+  return to
+}
+
+// 集まるときの立ち位置を、タップした点からのずれ(px)で返す。奥行きが出るように縦は狭くする
+export function gatherOffset(index: number, count: number, radiusPx: number): WalkPoint {
+  if (count <= 1) return { x: 0, y: 0 }
+  const angle = (index / count) * Math.PI * 2
+  return { x: Math.cos(angle) * radiusPx, y: Math.sin(angle) * radiusPx * 0.6 }
 }
