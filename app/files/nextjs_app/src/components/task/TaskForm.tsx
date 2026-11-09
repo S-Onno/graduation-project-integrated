@@ -5,8 +5,7 @@ import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
-
-type PriorityValue = 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE'
+import type { PriorityValue, Task } from '@/lib/tasks'
 
 const PRIORITY_OPTIONS: { value: PriorityValue; label: string; color: string; bg: string }[] = [
   { value: 'NONE', label: 'なし', color: '#9ca3af', bg: '#f3f4f6' },
@@ -15,13 +14,7 @@ const PRIORITY_OPTIONS: { value: PriorityValue; label: string; color: string; bg
   { value: 'LOW', label: '低', color: '#2563eb', bg: '#eff6ff' },
 ]
 
-export interface EditingTask {
-  id: string
-  title: string
-  description?: string | null
-  due_date?: string | null
-  priority: PriorityValue
-}
+export type EditingTask = Pick<Task, 'id' | 'title' | 'description' | 'due_date' | 'priority'>
 
 interface Props {
   // 追加モード

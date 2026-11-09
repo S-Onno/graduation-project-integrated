@@ -1,14 +1,6 @@
 'use client'
 
-interface Task {
-  id: string
-  title: string
-  description?: string | null
-  due_date?: string | null
-  priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE'
-  is_done: boolean
-  created_at: string
-}
+import type { Task } from '@/lib/tasks'
 
 const PRIORITY_CLASS: Record<string, string> = {
   HIGH: ' priority-high',
