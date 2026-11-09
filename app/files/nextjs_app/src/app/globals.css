@@ -645,6 +645,18 @@ body {
 .tl-due-pill { border-radius: 99px; }
 .tl-empty { border: 2px dashed var(--c-line-strong); border-radius: var(--zoo-radius); background: var(--cream); }
 .tl-toast { border-radius: var(--zoo-radius); background: var(--wood-dark); color: var(--cream); border: 2px solid var(--wood); }
+.tl-toast { display: flex; align-items: center; gap: 14px; }
+/* 画面の中央に置くとき、幅が画面の半分に縮んで文字が折り返さないよう、文字の長さに合わせる */
+@media (max-width: 768px) {
+  .tl-toast { width: max-content; max-width: calc(100vw - 32px); }
+}
+/* 通知の中の「元に戻す」ボタン */
+.tl-toast-action {
+  flex-shrink: 0; background: var(--cream); color: var(--wood-dark);
+  border: 2px solid var(--cream); border-radius: var(--zoo-radius);
+  padding: 4px 12px; font-size: 13px; font-weight: 700; font-family: var(--font-round); cursor: pointer;
+}
+.tl-toast-action:hover { background: #fff3da; }
 .tl-modal { border: 2px solid var(--wood); border-radius: 14px; background: var(--cream); box-shadow: 4px 4px 0 var(--wood); }
 .tl-modal h3 { font-weight: 700; }
 .tl-input { border-width: 2px; }
