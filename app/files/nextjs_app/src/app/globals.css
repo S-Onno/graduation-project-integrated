@@ -232,6 +232,95 @@ body {
 }
 .tl-search-status-clear:hover { background: #0F6E56; color: #fff; }
 
+/* ビューの切り替え(リスト / カレンダー) */
+.tl-view-tabs {
+  display: flex; gap: 4px; margin-bottom: 12px;
+  border-bottom: 1px solid var(--zoo-border);
+}
+.tl-view-tab {
+  padding: 8px 14px; font-size: 13px; color: var(--zoo-text-sub);
+  text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tl-view-tab:hover { color: var(--zoo-text); }
+.tl-view-tab.active { color: var(--zoo-purple); border-bottom-color: var(--zoo-purple); font-weight: 600; }
+
+/* カレンダー */
+.tl-cal-nav { display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; }
+.tl-cal-month { font-size: 16px; font-weight: 600; color: var(--zoo-text); min-width: 112px; text-align: center; }
+.tl-cal-nav-btn, .tl-cal-today-btn {
+  background: var(--zoo-bg); border: 1px solid var(--zoo-border); border-radius: var(--zoo-radius);
+  color: var(--zoo-text-sub); cursor: pointer; font-family: var(--font-main);
+}
+.tl-cal-nav-btn { width: 32px; height: 32px; font-size: 18px; line-height: 1; }
+.tl-cal-today-btn { margin-left: auto; padding: 6px 12px; font-size: 12px; }
+.tl-cal-nav-btn:hover, .tl-cal-today-btn:hover { background: var(--zoo-bg-hover); color: var(--zoo-text); }
+
+.tl-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.tl-cal-weekday { text-align: center; font-size: 11px; color: var(--zoo-text-muted); padding: 4px 0; }
+.tl-cal-weekday.sun { color: #dc2626; }
+.tl-cal-weekday.sat { color: #2563eb; }
+
+.tl-cal-day {
+  min-height: 84px; padding: 4px; text-align: left;
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--zoo-bg); border: 1px solid var(--zoo-border); border-radius: 6px;
+  cursor: pointer; font-family: var(--font-main); overflow: hidden;
+}
+.tl-cal-day:hover { background: var(--zoo-bg-hover); }
+.tl-cal-day.outside { background: var(--zoo-bg-sub); }
+.tl-cal-day.outside .tl-cal-date { color: var(--zoo-text-muted); }
+.tl-cal-day.selected { border-color: var(--zoo-purple); box-shadow: inset 0 0 0 1px var(--zoo-purple); }
+/* 選ばれている日は、もう一度押すと追加できることを「＋」で示す */
+.tl-cal-day { position: relative; }
+.tl-cal-day.selected::after {
+  content: '＋'; position: absolute; top: 2px; right: 4px;
+  font-size: 12px; color: var(--zoo-purple);
+}
+.tl-cal-date { font-size: 12px; color: var(--zoo-text); line-height: 20px; width: 20px; text-align: center; }
+.tl-cal-day.sun .tl-cal-date { color: #dc2626; }
+.tl-cal-day.sat .tl-cal-date { color: #2563eb; }
+.tl-cal-day.today .tl-cal-date { background: var(--zoo-purple); color: #fff; border-radius: 50%; font-weight: 600; }
+
+.tl-cal-chips { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tl-cal-chip {
+  display: block; font-size: 10px; line-height: 16px; padding: 0 4px;
+  background: var(--zoo-bg-sub); color: var(--zoo-text); border-radius: 3px;
+  border-left: 3px solid #d1d5db;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tl-cal-chip.priority-high   { border-left-color: #dc2626; }
+.tl-cal-chip.priority-medium { border-left-color: #d97706; }
+.tl-cal-chip.priority-low    { border-left-color: #2563eb; }
+.tl-cal-chip.overdue { color: #A32D2D; background: var(--zoo-red-bg); }
+.tl-cal-chip.done { text-decoration: line-through; opacity: 0.5; }
+.tl-cal-more { font-size: 10px; color: var(--zoo-text-sub); padding-left: 4px; }
+
+.tl-cal-dots { display: none; gap: 3px; align-items: center; padding-left: 2px; }
+.tl-cal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--zoo-purple); }
+.tl-cal-dot.done { background: #d1d5db; }
+.tl-cal-dot-more { font-size: 10px; color: var(--zoo-text-sub); line-height: 1; }
+
+.tl-cal-day-panel { margin-top: 16px; }
+.tl-cal-day-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 4px; border-bottom: 1px solid var(--zoo-border); margin-bottom: 4px;
+}
+.tl-cal-day-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--zoo-text); }
+.tl-cal-day-title .tl-section-count { margin-left: 0; font-size: 11px; font-weight: 400; color: var(--zoo-text-muted); }
+.tl-cal-add-btn {
+  background: transparent; border: 1px solid var(--zoo-purple); color: var(--zoo-purple);
+  border-radius: 99px; padding: 4px 12px; font-size: 12px; font-family: var(--font-main); cursor: pointer;
+}
+.tl-cal-add-btn:hover { background: var(--zoo-purple); color: #fff; }
+.tl-cal-note { font-size: 12px; color: var(--zoo-text-sub); margin: 12px 4px 0; }
+
+/* スマホ: マスが狭いので、タスク名の代わりに点で件数を示す */
+@media (max-width: 640px) {
+  .tl-cal-day { min-height: 52px; padding: 3px; align-items: center; }
+  .tl-cal-chips { display: none; }
+  .tl-cal-dots { display: flex; padding-left: 0; }
+}
+
 /* セクション */
 .tl-section { margin-bottom: 8px; }
 .tl-section-header {

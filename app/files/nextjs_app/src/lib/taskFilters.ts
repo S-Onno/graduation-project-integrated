@@ -2,9 +2,10 @@
  * タスクの絞り込み・分類
  *
  * 各ビューは同じタスクの一覧を受け取り、ここの関数で見せ方だけを変える。
- * (今後、期限別・マトリクスの分類をここに足す)
+ * (今後、マトリクスの分類をここに足す)
  * ============================================================ */
 
+import { format } from 'date-fns'
 import type { Task } from '@/lib/tasks'
 
 // 未完了と完了済みに分ける(並び順は受け取った順のまま)
@@ -40,4 +41,29 @@ export function filterTasks(tasks: Task[], query: string): Task[] {
   const words = parseQuery(query)
   if (words.length === 0) return tasks
   return tasks.filter((task) => matchesQuery(task, words))
+}
+
+// 日付を、期限の日ごとに分けるときのキー(ブラウザの時刻で 'yyyy-MM-dd')にする
+export function dayKey(date: Date): string {
+  return format(date, 'yyyy-MM-dd')
+}
+
+// 期限のあるタスクを、期限の日ごとに分ける。同じ日の中は、未完了 → 完了済み、期限の早い順
+export function groupByDueDay(tasks: Task[]): Map<string, Task[]> {
+  const days = new Map<string, Task[]>()
+  for (const task of tasks) {
+    if (!task.due_date) continue
+    const key = dayKey(new Date(task.due_date))
+    const list = days.get(key) ?? []
+    list.push(task)
+    days.set(key, list)
+  }
+  for (const list of days.values()) {
+    list.sort(
+      (a, b) =>
+        Number(a.is_done) - Number(b.is_done) ||
+        new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime(),
+    )
+  }
+  return days
 }

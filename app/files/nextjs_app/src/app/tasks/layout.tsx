@@ -17,7 +17,10 @@ import { IkuseiView, IkuseiHandle } from '@/app/zoo/training/page'
  * ============================================================ */
 
 // タスク画面のビュー。カレンダーやマトリクスを作ったら、ここに足す
-const TASK_VIEWS = [{ href: '/tasks', label: 'リスト' }]
+const TASK_VIEWS = [
+  { href: '/tasks', label: 'リスト' },
+  { href: '/tasks/calendar', label: 'カレンダー' },
+]
 
 function TasksHeader() {
   const { openAdd } = useTasksContext()
@@ -27,7 +30,7 @@ function TasksHeader() {
         <h2 className="tl-title">タスク管理</h2>
         <p className="tl-subtitle">タスクを完了すると動物が育ちます 🐾</p>
       </div>
-      <button className="tl-add-btn" onClick={openAdd}>
+      <button className="tl-add-btn" onClick={() => openAdd()}>
         ＋ タスクを追加
       </button>
     </div>

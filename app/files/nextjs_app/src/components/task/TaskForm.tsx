@@ -23,15 +23,20 @@ interface Props {
   onEdit?: (title: string, description: string, dueDate: string, priority: PriorityValue) => Promise<void>
   // 編集対象タスク（編集モード時に渡す）
   editingTask?: EditingTask
+  // 追加モードで、最初から入れておく期限の日(終日として入れる。カレンダーから追加するとき)
+  defaultDate?: Date
   onClose: () => void
 }
 
-export function TaskForm({ onAdd, onEdit, editingTask, onClose }: Props) {
+export function TaskForm({ onAdd, onEdit, editingTask, defaultDate, onClose }: Props) {
   const isEditing = !!editingTask
 
-  const initialDate = editingTask?.due_date ? new Date(editingTask.due_date) : undefined
-  const initialIsAllDay = !!editingTask?.due_date &&
-    initialDate!.getHours() === 23 && initialDate!.getMinutes() === 59 && initialDate!.getSeconds() === 59
+  const initialDate = editingTask?.due_date
+    ? new Date(editingTask.due_date)
+    : isEditing ? undefined : defaultDate
+  const initialIsAllDay = editingTask?.due_date
+    ? initialDate!.getHours() === 23 && initialDate!.getMinutes() === 59 && initialDate!.getSeconds() === 59
+    : !isEditing && !!defaultDate
 
   const [title, setTitle] = useState(editingTask?.title ?? '')
   const [description, setDescription] = useState(editingTask?.description ?? '')

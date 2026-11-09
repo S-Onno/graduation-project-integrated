@@ -8,9 +8,18 @@ import { signOut } from 'next-auth/react'
 
 const TASK_NAV = [
   { href: '/tasks', label: 'タスク管理', icon: '📋' },
+  { href: '/tasks/calendar', label: 'カレンダー', icon: '📅' },
 ]
 const ZOO_NAV = { href: '/zoo/map', label: '動物園', icon: '🦁' }
 const NAV = [...TASK_NAV, ZOO_NAV]
+
+// いまの URL に、いちばん詳しく一致するナビの項目
+// (/tasks/calendar を開いているときに「タスク管理」まで選択中にしないため)
+function currentNavHref(pathname: string): string | undefined {
+  return NAV.map((item) => item.href)
+    .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0]
+}
 
 export function AppShell({
   children,
@@ -25,6 +34,7 @@ export function AppShell({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
+  const currentHref = currentNavHref(pathname)
 
   return (
     <div className="app-shell">
@@ -49,7 +59,7 @@ export function AppShell({
             <Link
               key={item.href}
               href={item.href}
-              className={`nav-item${pathname.startsWith(item.href) ? ' active' : ''}`}
+              className={`nav-item${currentHref === item.href ? ' active' : ''}`}
               onClick={() => setSidebarOpen(false)}
             >
               <span>{item.icon}</span>
@@ -65,7 +75,7 @@ export function AppShell({
         <div className="sidebar-zoo-section">
           <Link
             href={ZOO_NAV.href}
-            className={`sidebar-zoo-btn${pathname.startsWith(ZOO_NAV.href) ? ' active' : ''}`}
+            className={`sidebar-zoo-btn${currentHref === ZOO_NAV.href ? ' active' : ''}`}
             onClick={() => setSidebarOpen(false)}
           >
             <span className="sidebar-zoo-icon">{ZOO_NAV.icon}</span>
@@ -85,7 +95,7 @@ export function AppShell({
         <header className="topbar">
           <button className="topbar-menu" onClick={() => setSidebarOpen(true)}>☰</button>
           <h1 className="topbar-title">
-            {NAV.find(n => pathname.startsWith(n.href))?.label ?? 'ZooTask'}
+            {NAV.find(n => n.href === currentHref)?.label ?? 'ZooTask'}
           </h1>
         </header>
 
