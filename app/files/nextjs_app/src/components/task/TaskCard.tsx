@@ -1,6 +1,7 @@
 'use client'
 
 import type { Task } from '@/lib/tasks'
+import { Icon } from '@/components/ui/Icon'
 
 const PRIORITY_CLASS: Record<string, string> = {
   HIGH: ' priority-high',
@@ -43,11 +44,8 @@ export function TaskCard({ task, onComplete, onDelete, onEdit }: Props) {
         disabled={task.is_done}
         aria-label="完了"
       >
-        {task.is_done && (
-          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-            <path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
+        {/* 完了したら足あとのスタンプ */}
+        {task.is_done && <Icon name="zoo" size={13} />}
       </button>
 
       <div className="tl-item-content">

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=Orbitron:wght@400;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=Orbitron:wght@400;700;900&family=Zen+Maru+Gothic:wght@400;500;700&family=DotGothic16&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -26,23 +26,38 @@
   --font-game: 'Orbitron', sans-serif;
 
   /* タスク管理画面（ライトテーマ）用 */
-  --zoo-purple      : #10b981;/*#6366f1;*/
-  --zoo-purple-light: #0c7955;
-  --zoo-purple-bg   : #eef2ff;
-  --zoo-teal        : #10b981;
-  --zoo-teal-bg     : #ecfdf5;
-  --zoo-amber       : #f59e0b;
-  --zoo-amber-bg    : #fffbeb;
-  --zoo-red         : #ef4444;
-  --zoo-red-bg      : #fef2f2;
-  --zoo-text        : #1f2937;
-  --zoo-text-sub    : #6b7280;
-  --zoo-text-muted  : #9ca3af;
-  --zoo-border      : #e5e7eb;
-  --zoo-bg          : #ffffff;
-  --zoo-bg-sub      : #f9fafb;
-  --zoo-bg-hover    : #f3f4f6;
-  --zoo-radius      : 8px;
+  /* 動物園の案内板のデザイン(タスク画面・サイドバー・上部バー)。
+     サバンナの砂色に、木の茶色と葉の緑。角は丸く、影はぼかさずにずらす(ドット絵風) */
+  --zoo-purple      : #5d8a3a; /* 葉の緑: ボタン・選択中 */
+  --zoo-purple-light: #4a7230;
+  --zoo-purple-bg   : #e7efd9;
+  --zoo-teal        : #4f8fa8; /* 空色: 終日・検索中 */
+  --zoo-teal-bg     : #e1eef2;
+  --zoo-amber       : #c98a2b; /* 黄土: 期限 */
+  --zoo-amber-bg    : #f8ead0;
+  --zoo-red         : #c0533a; /* 赤茶: 期限切れ・削除 */
+  --zoo-red-bg      : #f7e1d8;
+  --zoo-text        : #3d2b1a; /* こげ茶 */
+  --zoo-text-sub    : #7a6248;
+  --zoo-text-muted  : #a8916f;
+  --zoo-border      : #e3d2ad; /* 砂の縁 */
+  --zoo-bg          : #fffaf0; /* クリーム: カード */
+  --zoo-bg-sub      : #f4ead2; /* 砂: 背景 */
+  --zoo-bg-hover    : #f8eed8;
+  --zoo-radius      : 10px;
+  --c-red           : #c0533a;
+  --c-blue          : #4f7fa8;
+  --c-yellow        : #c98a2b;
+  --c-yellow-ink    : #7a521a;
+  --c-green         : #5d8a3a;
+  --c-green-dark    : #3f6526;
+  --c-line-strong   : #d2b98c;
+  --wood            : #8b5e34; /* 木の看板 */
+  --wood-dark       : #6b4423;
+  --cream           : #fffaf0;
+  --font-round      : 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+  --font-dot        : 'DotGothic16', 'Zen Maru Gothic', monospace;
+  --tabbar-height   : 60px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -144,7 +159,7 @@ body {
 }
 .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
 .btn-danger {
-  background: linear-gradient(135deg, var(--accent-red), #b91c1c);
+  background: linear-gradient(135deg, var(--accent-red), var(--c-red));
   color: #fff; border: none; border-radius: var(--radius-sm);
   padding: 8px 16px; font-size: 13px; font-family: var(--font-main); cursor: pointer;
 }
@@ -223,14 +238,14 @@ body {
 .tl-search-result { font-size: 12px; color: var(--zoo-text-sub); margin: 6px 4px 0; }
 .tl-search-status {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  background: var(--zoo-teal-bg); color: #0F6E56; border-radius: var(--zoo-radius);
+  background: var(--zoo-teal-bg); color: var(--c-green); border-radius: var(--zoo-radius);
   padding: 6px 8px 6px 12px; margin-bottom: 12px; font-size: 12px;
 }
 .tl-search-status-clear {
-  background: transparent; border: 1px solid #0F6E56; color: #0F6E56; border-radius: 99px;
+  background: transparent; border: 1px solid var(--c-green); color: var(--c-green); border-radius: 99px;
   padding: 2px 10px; font-size: 12px; font-family: var(--font-main); cursor: pointer; flex-shrink: 0;
 }
-.tl-search-status-clear:hover { background: #0F6E56; color: #fff; }
+.tl-search-status-clear:hover { background: var(--c-green); color: #fff; }
 
 /* ビューの切り替え(リスト / カレンダー) */
 .tl-view-tabs {
@@ -257,8 +272,8 @@ body {
 
 .tl-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
 .tl-cal-weekday { text-align: center; font-size: 11px; color: var(--zoo-text-muted); padding: 4px 0; }
-.tl-cal-weekday.sun { color: #dc2626; }
-.tl-cal-weekday.sat { color: #2563eb; }
+.tl-cal-weekday.sun { color: var(--c-red); }
+.tl-cal-weekday.sat { color: var(--c-blue); }
 
 .tl-cal-day {
   min-height: 84px; padding: 4px; text-align: left;
@@ -277,27 +292,27 @@ body {
   font-size: 12px; color: var(--zoo-purple);
 }
 .tl-cal-date { font-size: 12px; color: var(--zoo-text); line-height: 20px; width: 20px; text-align: center; }
-.tl-cal-day.sun .tl-cal-date { color: #dc2626; }
-.tl-cal-day.sat .tl-cal-date { color: #2563eb; }
+.tl-cal-day.sun .tl-cal-date { color: var(--c-red); }
+.tl-cal-day.sat .tl-cal-date { color: var(--c-blue); }
 .tl-cal-day.today .tl-cal-date { background: var(--zoo-purple); color: #fff; border-radius: 50%; font-weight: 600; }
 
 .tl-cal-chips { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tl-cal-chip {
   display: block; font-size: 10px; line-height: 16px; padding: 0 4px;
   background: var(--zoo-bg-sub); color: var(--zoo-text); border-radius: 3px;
-  border-left: 3px solid #d1d5db;
+  border-left: 3px solid var(--c-line-strong);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.tl-cal-chip.priority-high   { border-left-color: #dc2626; }
-.tl-cal-chip.priority-medium { border-left-color: #d97706; }
-.tl-cal-chip.priority-low    { border-left-color: #2563eb; }
-.tl-cal-chip.overdue { color: #A32D2D; background: var(--zoo-red-bg); }
+.tl-cal-chip.priority-high   { border-left-color: var(--c-red); }
+.tl-cal-chip.priority-medium { border-left-color: var(--c-yellow); }
+.tl-cal-chip.priority-low    { border-left-color: var(--c-blue); }
+.tl-cal-chip.overdue { color: var(--c-red); background: var(--zoo-red-bg); }
 .tl-cal-chip.done { text-decoration: line-through; opacity: 0.5; }
 .tl-cal-more { font-size: 10px; color: var(--zoo-text-sub); padding-left: 4px; }
 
 .tl-cal-dots { display: none; gap: 3px; align-items: center; padding-left: 2px; }
 .tl-cal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--zoo-purple); }
-.tl-cal-dot.done { background: #d1d5db; }
+.tl-cal-dot.done { background: var(--c-line-strong); }
 .tl-cal-dot-more { font-size: 10px; color: var(--zoo-text-sub); line-height: 1; }
 
 .tl-cal-day-panel { margin-top: 16px; }
@@ -332,18 +347,18 @@ body {
   background: var(--zoo-bg); border: 1px solid var(--zoo-border); border-top-width: 4px;
   border-radius: var(--zoo-radius); padding: 8px 6px; min-height: 160px; min-width: 0;
 }
-.tl-quad-doNow { border-top-color: #dc2626; }
-.tl-quad-plan  { border-top-color: #2563eb; }
-.tl-quad-quick { border-top-color: #d97706; }
-.tl-quad-later { border-top-color: #9ca3af; }
+.tl-quad-doNow { border-top-color: var(--c-red); }
+.tl-quad-plan  { border-top-color: var(--c-blue); }
+.tl-quad-quick { border-top-color: var(--c-yellow); }
+.tl-quad-later { border-top-color: var(--zoo-text-muted); }
 .tl-quad-head {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px;
   padding: 0 6px 6px; border-bottom: 1px solid var(--zoo-border); margin-bottom: 4px;
 }
 .tl-quad-title { font-size: 14px; font-weight: 700; color: var(--zoo-text); }
-.tl-quad-doNow .tl-quad-title { color: #b91c1c; }
-.tl-quad-plan  .tl-quad-title { color: #1d4ed8; }
-.tl-quad-quick .tl-quad-title { color: #b45309; }
+.tl-quad-doNow .tl-quad-title { color: var(--c-red); }
+.tl-quad-plan  .tl-quad-title { color: var(--c-blue); }
+.tl-quad-quick .tl-quad-title { color: var(--c-yellow); }
 .tl-quad-axis { font-size: 10px; color: var(--zoo-text-muted); }
 .tl-quad-count { margin-left: auto; font-size: 11px; color: var(--zoo-text-muted); }
 .tl-quad-empty { font-size: 12px; color: var(--zoo-text-muted); text-align: center; padding: 24px 8px; }
@@ -378,15 +393,15 @@ body {
   border-left: 3px solid transparent;
   transition: background 0.15s;
 }
-.tl-item.priority-high   { border-left-color: #dc2626; }
-.tl-item.priority-medium { border-left-color: #d97706; }
-.tl-item.priority-low    { border-left-color: #2563eb; }
+.tl-item.priority-high   { border-left-color: var(--c-red); }
+.tl-item.priority-medium { border-left-color: var(--c-yellow); }
+.tl-item.priority-low    { border-left-color: var(--c-blue); }
 .tl-item:hover { background: var(--zoo-bg-hover); }
 .tl-item.done .tl-item-title { text-decoration: line-through; }
 .tl-item.done { opacity: 0.45; }
 
 .tl-checkbox {
-  width: 18px; height: 18px; border: 1.5px solid #d1d5db; border-radius: 50%;
+  width: 18px; height: 18px; border: 1.5px solid var(--c-line-strong); border-radius: 50%;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; margin-top: 2px; background: transparent; padding: 0;
   transition: all 0.2s ease;
@@ -394,9 +409,9 @@ body {
 .tl-checkbox:hover { border-color: var(--zoo-purple); }
 .tl-checkbox.checked { background: var(--zoo-teal); border-color: var(--zoo-teal); }
 /* 未完了時、チェックボックスのフチを優先度の色にする */
-.tl-item.priority-high .tl-checkbox:not(.checked)   { border-color: #dc2626; }
-.tl-item.priority-medium .tl-checkbox:not(.checked) { border-color: #d97706; }
-.tl-item.priority-low .tl-checkbox:not(.checked)    { border-color: #2563eb; }
+.tl-item.priority-high .tl-checkbox:not(.checked)   { border-color: var(--c-red); }
+.tl-item.priority-medium .tl-checkbox:not(.checked) { border-color: var(--c-yellow); }
+.tl-item.priority-low .tl-checkbox:not(.checked)    { border-color: var(--c-blue); }
 
 .tl-item-content { flex: 1; min-width: 0; }
 .tl-item-title { font-size: 14px; font-weight: 500; color: var(--zoo-text); }
@@ -404,14 +419,14 @@ body {
 
 .tl-due-pill {
   display: inline-flex; align-items: center; gap: 4px;
-  background: var(--zoo-amber-bg); color: #854F0B;
+  background: var(--zoo-amber-bg); color: var(--c-yellow-ink);
   font-size: 11px; padding: 2px 8px; border-radius: 99px; margin-top: 6px;
 }
-.tl-due-pill.overdue { background: var(--zoo-red-bg); color: #A32D2D; }
-.tl-due-pill.allday { background: var(--zoo-teal-bg); color: #0F6E56; }
+.tl-due-pill.overdue { background: var(--zoo-red-bg); color: var(--c-red); }
+.tl-due-pill.allday { background: var(--zoo-teal-bg); color: var(--c-green); }
 
 .tl-delete-btn {
-  background: transparent; border: none; color: #d1d5db; cursor: pointer;
+  background: transparent; border: none; color: var(--c-line-strong); cursor: pointer;
   padding: 6px; border-radius: 6px; font-size: 15px; line-height: 1;
   transition: all 0.15s; flex-shrink: 0;
 }
@@ -466,7 +481,7 @@ body {
 /* トースト（タスク画面専用） */
 .tl-toast {
   position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
-  background: #1f2937; color: #fff;
+  background: var(--zoo-text); color: #fff;
   border-radius: 10px; padding: 12px 20px; font-size: 13px;
   animation: tlFadeInUp 0.25s ease; z-index: 9999; white-space: nowrap;
 }
@@ -538,3 +553,189 @@ body {
   margin-bottom: 16px; margin-top: 28px;
 }
 .section-header h3 { font-size: 16px; font-weight: 700; }
+
+/* ==========================================================================
+   動物園の案内板のデザイン(タスク画面・サイドバー・上部バー・スマホのタブバー)
+   砂色の背景にクリーム色のカード。木の看板の見出し、丸ゴシック、日付や件数はドット文字
+   ========================================================================== */
+
+/* 文字: 丸ゴシック(フォームと通知は AppShell の外にあるので、一緒に指定する) */
+.app-shell, .tl-modal-overlay, .tl-toast {
+  --font-main: var(--font-round);
+  font-family: var(--font-round);
+}
+.tl-section-count, .tl-due-pill, .tl-subtitle, .tl-search-result, .tl-quad-count,
+.tl-cal-date, .tl-cal-month, .tl-cal-day-title .tl-section-count {
+  font-family: var(--font-dot);
+}
+
+/* サイドバー・上部バー */
+.sidebar { background: var(--zoo-bg-sub); border-right: 2px solid var(--zoo-border); }
+.sidebar-header { gap: 8px; color: var(--zoo-text); border-bottom: 2px solid var(--zoo-border); }
+.sidebar-title { font-size: 18px; font-weight: 700; }
+.nav-item { gap: 10px; border: 2px solid transparent; border-left-width: 2px; }
+.nav-item.active {
+  background: var(--cream); color: var(--zoo-text); font-weight: 700;
+  border: 2px solid var(--wood); box-shadow: 2px 2px 0 var(--wood);
+}
+.nav-item.active svg { color: var(--c-green); }
+.topbar { background: var(--cream); border-bottom: 2px solid var(--zoo-border); }
+.topbar-title { font-weight: 700; }
+
+/* 動物園へのボタン: 葉の緑の札 */
+.sidebar-zoo-section { border-top: 2px solid var(--zoo-border); }
+.sidebar-zoo-btn {
+  background: var(--zoo-purple-bg); border: 2px solid var(--c-green); border-radius: var(--zoo-radius);
+  color: var(--c-green-dark); font-weight: 700; box-shadow: 2px 2px 0 var(--c-green-dark);
+}
+.sidebar-zoo-btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--c-green-dark); }
+.sidebar-zoo-btn.active { background: var(--cream); border-color: var(--c-green-dark); color: var(--c-green-dark); }
+.sidebar-zoo-icon { display: inline-flex; color: var(--wood); }
+.sidebar-logout { border: 2px solid var(--zoo-border); color: var(--zoo-text-sub); border-radius: var(--zoo-radius); }
+.sidebar-logout:hover { background: var(--zoo-bg-hover); color: var(--zoo-text); }
+.topbar-menu { display: none; align-items: center; color: var(--zoo-text); }
+@media (max-width: 768px) { .topbar-menu { display: inline-flex; } }
+
+/* タスク画面は砂色で画面の下まで埋める(下に黒い帯が出ないように) */
+.tl-page { min-height: calc(100dvh - 64px); }
+
+/* 見出しは木の看板 */
+.tl-header {
+  position: relative; align-items: center;
+  background: var(--wood); color: var(--cream);
+  border: 2px solid var(--wood-dark); border-radius: var(--zoo-radius);
+  box-shadow: 0 3px 0 var(--wood-dark); padding: 12px 18px;
+}
+.tl-header::before, .tl-header::after { /* 看板の釘 */
+  content: ''; position: absolute; top: 8px; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--wood-dark); box-shadow: 0 1px 0 rgba(255, 250, 240, 0.35);
+}
+.tl-header::before { left: 8px; }
+.tl-header::after { right: 8px; }
+.tl-title { font-size: 20px; font-weight: 700; color: var(--cream); }
+.tl-subtitle { font-size: 12px; color: #f0dcb5; margin-top: 0; }
+.tl-add-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--cream); color: var(--wood-dark); font-weight: 700;
+  border: 2px solid var(--wood-dark); border-radius: var(--zoo-radius); padding: 6px 14px;
+  box-shadow: 0 2px 0 var(--wood-dark);
+}
+.tl-add-btn:hover { background: #fff3da; }
+.tl-add-btn:active { transform: translateY(2px); box-shadow: none; }
+
+/* 切り替えのタブ */
+.tl-view-tabs { border-bottom: 2px solid var(--zoo-border); }
+.tl-view-tab { font-weight: 500; border-bottom-width: 3px; }
+
+/* タスクのカード */
+.tl-list { gap: 8px; padding-top: 4px; }
+.tl-item {
+  background: var(--cream); border: 2px solid var(--zoo-border); border-left-width: 5px;
+  border-radius: var(--zoo-radius); box-shadow: 2px 2px 0 var(--c-line-strong);
+}
+.tl-item:hover { background: var(--zoo-bg-hover); }
+.tl-item.done { opacity: 0.6; box-shadow: none; }
+.tl-section-header { border-bottom: 2px dashed var(--zoo-border); color: var(--zoo-text-sub); font-weight: 700; }
+.tl-checkbox { border-width: 2px; }
+/* 完了は足あとのスタンプ */
+.tl-checkbox.checked {
+  background: var(--zoo-amber-bg); border-color: var(--wood); color: var(--wood);
+  transform: rotate(-12deg);
+}
+.tl-due-pill { border-radius: 99px; }
+.tl-empty { border: 2px dashed var(--c-line-strong); border-radius: var(--zoo-radius); background: var(--cream); }
+.tl-toast { border-radius: var(--zoo-radius); background: var(--wood-dark); color: var(--cream); border: 2px solid var(--wood); }
+.tl-modal { border: 2px solid var(--wood); border-radius: 14px; background: var(--cream); box-shadow: 4px 4px 0 var(--wood); }
+.tl-modal h3 { font-weight: 700; }
+.tl-input { border-width: 2px; }
+.tl-btn-primary, .tl-btn-ghost { border-radius: var(--zoo-radius); }
+.tl-search-input { border-width: 2px; }
+.tl-search-icon { opacity: 1; color: var(--zoo-text-muted); display: inline-flex; }
+.tl-search-status { border: 2px solid var(--zoo-teal); }
+
+/* カレンダー・マトリクスも同じ形にそろえる */
+.tl-cal-day { border-width: 2px; border-radius: 8px; }
+.tl-cal-nav-btn, .tl-cal-today-btn { border-width: 2px; }
+.tl-quad { border-width: 2px; border-top-width: 6px; box-shadow: 2px 2px 0 var(--c-line-strong); }
+
+/* 右下の追加ボタン(スマホ)と、右から引き出す育成パネルは、ふだんは出さない */
+.tl-fab, .tl-game-handle, .tl-game-backdrop, .tabbar { display: none; }
+
+/* ---- 横並びにならない幅(タブレット・スマホ): 育成パネルを右から引き出す ---- */
+@media (max-width: 1023px) {
+  /* 開いたときに、左端のつまみ(幅 約60px)が画面に収まる幅にする */
+  :root { --game-drawer-width: min(420px, calc(100vw - 64px)); }
+  .tl-game {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 120;
+    width: var(--game-drawer-width); overflow-y: auto;
+    background: var(--zoo-bg-sub); border-left: 3px solid var(--wood);
+    transform: translateX(100%); transition: transform 0.25s ease; visibility: hidden;
+  }
+  .tl-game.open { transform: translateX(0); visibility: visible; }
+  .tl-game-backdrop { display: block; position: fixed; inset: 0; z-index: 110; background: rgba(61, 43, 26, 0.35); }
+  /* 右端のつまみ */
+  .tl-game-handle {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    position: fixed; right: 0; top: 42%; z-index: 90;
+    padding: 12px 7px; border: 2px solid var(--wood-dark); border-right: none;
+    border-radius: 10px 0 0 10px; background: var(--wood); color: var(--cream);
+    box-shadow: -2px 2px 0 var(--wood-dark);
+    font-family: var(--font-round); font-weight: 700; font-size: 12px; writing-mode: vertical-rl; letter-spacing: 0.2em;
+    cursor: pointer;
+  }
+  .tl-game-handle svg { color: #f0dcb5; }
+  /* つまみはパネルと同じ速さで動き、開いているときはパネルの左端にくっつく */
+  .tl-game-handle { transition: right 0.25s ease; }
+  .tl-game-handle.open { right: var(--game-drawer-width); z-index: 125; }
+}
+
+/* ---- スマホ ---- */
+@media (max-width: 768px) {
+  /* 見出しは上部バーに任せ、ページ内の見出しと説明は出さない */
+  .tl-header { display: none; }
+  /* 画面の切り替えは下のタブバーで行う */
+  .tl-view-tabs { display: none; }
+  .page-container { padding-bottom: calc(var(--tabbar-height) + 88px + env(safe-area-inset-bottom)); }
+
+  /* 下のタブバー */
+  .tabbar {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 80;
+    height: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--cream); border-top: 2px solid var(--zoo-border);
+  }
+  .tabbar-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    font-size: 10px; color: var(--zoo-text-muted); text-decoration: none; border-top: 3px solid transparent;
+  }
+  .tabbar-item.active { color: var(--c-green-dark); border-top-color: var(--c-green); font-weight: 700; }
+
+  /* 右下の追加ボタン */
+  .tl-fab {
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; right: 16px; bottom: calc(var(--tabbar-height) + 16px + env(safe-area-inset-bottom)); z-index: 85;
+    width: 54px; height: 54px; border-radius: 50%; border: 2px solid var(--c-green-dark);
+    background: var(--c-green); color: #fff; cursor: pointer; box-shadow: 0 3px 0 var(--c-green-dark);
+  }
+
+  /* 追加・編集フォームは、下からせり上がるシートにする */
+  .tl-modal-overlay { align-items: flex-end; }
+  .tl-modal {
+    width: 100%; max-width: none; max-height: 88dvh; overflow-y: auto;
+    border-radius: 16px 16px 0 0; border-bottom: none; box-shadow: 0 -3px 0 var(--wood);
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    animation: tlSheetUp 0.22s ease-out;
+  }
+  .tl-toast { bottom: calc(var(--tabbar-height) + 80px + env(safe-area-inset-bottom)); white-space: normal; max-width: 90vw; }
+
+  /* 指で押しやすい大きさにする */
+  .tl-delete-btn { padding: 10px; }
+  .tl-checkbox { width: 22px; height: 22px; }
+  .tl-item { padding: 12px 6px; }
+}
+@keyframes tlSheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+

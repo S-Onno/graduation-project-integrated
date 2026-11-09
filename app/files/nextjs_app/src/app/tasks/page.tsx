@@ -27,7 +27,7 @@ export default function TaskListPage() {
             <div className="tl-empty">
               {searching
                 ? `「${query.trim()}」に一致する未完了のタスクはありません。`
-                : 'タスクはありません。右上の「＋ タスクを追加」から作成してください。'}
+                : 'まだメモはありません。「タスクを追加」から書きこんでください。'}
             </div>
           ) : (
             <div className="tl-list">

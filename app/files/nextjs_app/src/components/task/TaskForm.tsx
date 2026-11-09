@@ -8,10 +8,10 @@ import { ja } from 'date-fns/locale'
 import type { PriorityValue, Task } from '@/lib/tasks'
 
 const PRIORITY_OPTIONS: { value: PriorityValue; label: string; color: string; bg: string }[] = [
-  { value: 'NONE', label: 'なし', color: '#9ca3af', bg: '#f3f4f6' },
-  { value: 'HIGH', label: '高', color: '#dc2626', bg: '#fef2f2' },
-  { value: 'MEDIUM', label: '中', color: '#d97706', bg: '#fffbeb' },
-  { value: 'LOW', label: '低', color: '#2563eb', bg: '#eff6ff' },
+  { value: 'NONE', label: 'なし', color: '#a8916f', bg: '#f8eed8' },
+  { value: 'HIGH', label: '高', color: '#c0533a', bg: '#f7e1d8' },
+  { value: 'MEDIUM', label: '中', color: '#c98a2b', bg: '#f8ead0' },
+  { value: 'LOW', label: '低', color: '#4f7fa8', bg: '#e6eef6' },
 ]
 
 export type EditingTask = Pick<Task, 'id' | 'title' | 'description' | 'due_date' | 'priority'>
@@ -88,7 +88,7 @@ export function TaskForm({ onAdd, onEdit, editingTask, defaultDate, onClose }: P
   return (
     <div className="tl-modal-overlay" onClick={onClose}>
       <div className="tl-modal" onClick={e => e.stopPropagation()}>
-        <h3>{isEditing ? '✏️ タスクを編集' : '📋 新しいタスクを追加'}</h3>
+        <h3>{isEditing ? 'タスクを編集' : '新しいタスク'}</h3>
         <form onSubmit={handleSubmit}>
 
           {/* タスク名 */}
@@ -149,7 +149,7 @@ export function TaskForm({ onAdd, onEdit, editingTask, defaultDate, onClose }: P
               style={{ textAlign: 'left', cursor: 'pointer', color: selectedDate ? 'var(--zoo-text)' : 'var(--zoo-text-muted)' }}
               onClick={() => setShowCalendar(prev => !prev)}
             >
-              {dueDateLabel || '📅 日付を選択'}
+              {dueDateLabel || '日付を選ぶ'}
             </button>
 
             {/* カレンダー表示 */}
