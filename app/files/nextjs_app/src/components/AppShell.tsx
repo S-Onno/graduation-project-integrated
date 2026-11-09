@@ -5,13 +5,22 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { Icon } from '@/components/ui/Icon'
+import type { IconName } from '@/components/ui/Icon'
 
-const TASK_NAV = [
-  { href: '/tasks', label: 'タスク管理', icon: '📋' },
-  { href: '/tasks/calendar', label: 'カレンダー', icon: '📅' },
-  { href: '/tasks/matrix', label: 'マトリクス', icon: '🎯' },
+interface NavItem {
+  href: string
+  label: string // サイドバーと上部バーの名前
+  short: string // スマホの下のタブバーの名前
+  icon: IconName
+}
+
+const TASK_NAV: NavItem[] = [
+  { href: '/tasks', label: 'タスク管理', short: 'リスト', icon: 'list' },
+  { href: '/tasks/calendar', label: 'カレンダー', short: 'カレンダー', icon: 'calendar' },
+  { href: '/tasks/matrix', label: 'マトリクス', short: 'マトリクス', icon: 'matrix' },
 ]
-const ZOO_NAV = { href: '/zoo/map', label: '動物園', icon: '🦁' }
+const ZOO_NAV: NavItem = { href: '/zoo/map', label: '動物園', short: '動物園', icon: 'zoo' }
 const NAV = [...TASK_NAV, ZOO_NAV]
 
 // いまの URL に、いちばん詳しく一致するナビの項目
@@ -50,7 +59,7 @@ export function AppShell({
       {/* サイドバー */}
       <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
         <div className="sidebar-header">
-          <span className="sidebar-logo">🦁</span>
+          <span className="sidebar-zoo-icon"><Icon name="zoo" size={22} /></span>
           <span className="sidebar-title">ZooTask</span>
         </div>
 
@@ -63,7 +72,7 @@ export function AppShell({
               className={`nav-item${currentHref === item.href ? ' active' : ''}`}
               onClick={() => setSidebarOpen(false)}
             >
-              <span>{item.icon}</span>
+              <Icon name={item.icon} />
               <span>{item.label}</span>
             </Link>
           ))}
@@ -79,13 +88,13 @@ export function AppShell({
             className={`sidebar-zoo-btn${currentHref === ZOO_NAV.href ? ' active' : ''}`}
             onClick={() => setSidebarOpen(false)}
           >
-            <span className="sidebar-zoo-icon">{ZOO_NAV.icon}</span>
+            <span className="sidebar-zoo-icon"><Icon name={ZOO_NAV.icon} size={22} /></span>
             <span>{ZOO_NAV.label}</span>
           </Link>
         </div>
 
-        <div style={{ padding: '16px', borderTop: '1px solid var(--border)' }}>
-          <button className="btn-ghost" style={{ width: '100%' }} onClick={() => signOut({ callbackUrl: '/login' })}>
+        <div style={{ padding: '16px', borderTop: '1px solid var(--zoo-border)' }}>
+          <button className="btn-ghost sidebar-logout" style={{ width: '100%' }} onClick={() => signOut({ callbackUrl: '/login' })}>
             ログアウト
           </button>
         </div>
@@ -94,7 +103,11 @@ export function AppShell({
       {/* メインコンテンツ */}
       <div className="main-content">
         <header className="topbar">
-          <button className="topbar-menu" onClick={() => setSidebarOpen(true)}>☰</button>
+          <button className="topbar-menu" onClick={() => setSidebarOpen(true)} aria-label="メニューを開く">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
           <h1 className="topbar-title">
             {NAV.find(n => n.href === currentHref)?.label ?? 'ZooTask'}
           </h1>
@@ -104,6 +117,21 @@ export function AppShell({
           {fullBleed ? children : <div className="page-inner">{children}</div>}
         </main>
       </div>
+
+      {/* スマホの下のタブバー(PC では出さない) */}
+      <nav className="tabbar" aria-label="画面の切り替え">
+        {NAV.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`tabbar-item${currentHref === item.href ? ' active' : ''}`}
+            aria-current={currentHref === item.href ? 'page' : undefined}
+          >
+            <Icon name={item.icon} size={22} />
+            <span>{item.short}</span>
+          </Link>
+        ))}
+      </nav>
     </div>
   )
 }

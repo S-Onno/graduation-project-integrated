@@ -14,10 +14,6 @@ import type { PriorityValue, Task } from '@/lib/tasks'
  * 入力フォームと、完了したときの通知もここで表示する。
  * ============================================================ */
 
-interface Toast {
-  message: string
-  emoji: string
-}
 
 interface TasksContextValue {
   tasks: Task[] // すべてのタスク
@@ -53,11 +49,11 @@ export function TasksProvider({
   const [showForm, setShowForm] = useState(false)
   const [addDate, setAddDate] = useState<Date | undefined>(undefined)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [toast, setToast] = useState<Toast | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
   const [query, setQuery] = useState('')
 
-  const showToast = (message: string, emoji: string) => {
-    setToast({ message, emoji })
+  const showToast = (message: string) => {
+    setToast(message)
     setTimeout(() => setToast(null), 3000)
   }
 
@@ -68,15 +64,15 @@ export function TasksProvider({
 
     const update = data.animalUpdate
     if (update?.type === 'acquired') {
-      showToast(`🐣 ${update.animal?.animal.name ?? '動物'} の赤ちゃんを獲得しました！`, '🎉')
+      showToast(`${update.animal?.animal.name ?? '動物'}の赤ちゃんがやってきました`)
     } else if (update?.type === 'growUp') {
-      showToast(`✨ ${update.animal?.animal.name} が${STAGE_LABEL[update.newStage ?? ''] ?? ''}に成長！`, '🌟')
+      showToast(`${update.animal?.animal.name}が${STAGE_LABEL[update.newStage ?? ''] ?? ''}に育ちました`)
     } else {
-      showToast('タスク完了！育成中の動物が成長しました 🐾', '✅')
+      showToast('完了しました。育成中の動物が少し育ちました')
     }
 
     if (data.areaUnlocked) {
-      setTimeout(() => showToast(`🎊 新エリア「${data.areaUnlocked}」が解放されました！`, '🗺️'), 1500)
+      setTimeout(() => showToast(`新しいエリア「${data.areaUnlocked}」に入れるようになりました`), 1500)
     }
   }
 
@@ -126,8 +122,8 @@ export function TasksProvider({
       )}
 
       {toast && (
-        <div className="tl-toast">
-          {toast.emoji} {toast.message}
+        <div className="tl-toast" role="status">
+          {toast}
         </div>
       )}
     </TasksContext.Provider>
