@@ -7,10 +7,11 @@ import { splitByDone } from '@/lib/taskFilters'
 
 // タスク一覧(未完了と完了済み)。見出しや育成パネルは layout.tsx が表示する
 export default function TaskListPage() {
-  const { tasks, complete, remove, openEdit } = useTasksContext()
+  const { visibleTasks, query, complete, remove, openEdit } = useTasksContext()
   const [pendingOpen, setPendingOpen] = useState(true)
   const [doneOpen, setDoneOpen] = useState(true)
-  const { pending, done } = splitByDone(tasks)
+  const { pending, done } = splitByDone(visibleTasks)
+  const searching = query.trim().length > 0
 
   return (
     <>
@@ -24,7 +25,9 @@ export default function TaskListPage() {
         {pendingOpen && (
           pending.length === 0 ? (
             <div className="tl-empty">
-              タスクはありません。右上の「＋ タスクを追加」から作成してください。
+              {searching
+                ? `「${query.trim()}」に一致する未完了のタスクはありません。`
+                : 'タスクはありません。右上の「＋ タスクを追加」から作成してください。'}
             </div>
           ) : (
             <div className="tl-list">

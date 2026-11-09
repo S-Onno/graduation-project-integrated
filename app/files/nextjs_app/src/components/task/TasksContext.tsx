@@ -4,12 +4,13 @@ import { createContext, useContext, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTasks } from '@/hooks/useTasks'
 import { TaskForm } from '@/components/task/TaskForm'
+import { filterTasks } from '@/lib/taskFilters'
 import type { PriorityValue, Task } from '@/lib/tasks'
 
 /* ============================================================
  * タスク画面の共通の状態
  *
- * タスクの一覧と操作(完了・削除・追加・編集)を、タスク画面の各ビューで共有する。
+ * タスクの一覧と操作(完了・削除・追加・編集)、検索の言葉を、タスク画面の各ビューで共有する。
  * 入力フォームと、完了したときの通知もここで表示する。
  * ============================================================ */
 
@@ -19,7 +20,10 @@ interface Toast {
 }
 
 interface TasksContextValue {
-  tasks: Task[]
+  tasks: Task[] // すべてのタスク
+  visibleTasks: Task[] // 検索に合うタスク(検索していなければ、すべて)
+  query: string // 検索の言葉
+  setQuery: (query: string) => void
   complete: (id: string) => Promise<void>
   remove: (id: string) => Promise<void>
   openAdd: () => void
@@ -49,6 +53,7 @@ export function TasksProvider({
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
+  const [query, setQuery] = useState('')
 
   const showToast = (message: string, emoji: string) => {
     setToast({ message, emoji })
@@ -91,6 +96,9 @@ export function TasksProvider({
 
   const value: TasksContextValue = {
     tasks,
+    visibleTasks: filterTasks(tasks, query),
+    query,
+    setQuery,
     complete,
     remove,
     openAdd: () => setShowForm(true),
