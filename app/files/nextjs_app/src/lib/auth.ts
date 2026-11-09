@@ -20,9 +20,13 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        })
+        // 登録ではメールアドレスを小文字にそろえて保存しているので、ログインでも小文字にそろえて探す。
+        // 小文字にそろえる前(2026/9/4 より前)に登録したアカウントは大文字のまま残っていることがあるので、
+        // 見つからなければ、大文字と小文字を区別せずに探す
+        const email = credentials.email.trim()
+        const user =
+          (await prisma.user.findUnique({ where: { email: email.toLowerCase() } })) ??
+          (await prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } }))
         if (!user || !user.password) return null
 
         const valid = await bcrypt.compare(credentials.password, user.password)

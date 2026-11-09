@@ -27,7 +27,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'パスワードは8文字以上128文字以下で設定してください' }, { status: 400 })
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: trimmedEmail } })
+  // 大文字と小文字を区別せずに確かめる(小文字にそろえる前に登録した、大文字を含むアカウントと重ならないように)
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: trimmedEmail, mode: 'insensitive' } },
+  })
   if (existing) {
     return NextResponse.json({ error: 'このメールアドレスは既に使用されています' }, { status: 409 })
   }
