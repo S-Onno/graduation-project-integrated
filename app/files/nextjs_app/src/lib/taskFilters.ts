@@ -2,10 +2,9 @@
  * タスクの絞り込み・分類
  *
  * 各ビューは同じタスクの一覧を受け取り、ここの関数で見せ方だけを変える。
- * (今後、マトリクスの分類をここに足す)
  * ============================================================ */
 
-import { format } from 'date-fns'
+import { addDays, format, startOfDay } from 'date-fns'
 import type { Task } from '@/lib/tasks'
 
 // 未完了と完了済みに分ける(並び順は受け取った順のまま)
@@ -66,4 +65,40 @@ export function groupByDueDay(tasks: Task[]): Map<string, Task[]> {
     )
   }
   return days
+}
+
+// ===== アイゼンハワーマトリクス =====
+
+export type MatrixQuadrant = 'doNow' | 'plan' | 'quick' | 'later'
+
+// 期限が「今日から何日後まで」なら緊急とするか(期限切れも緊急)
+export const URGENT_DAYS = 3
+
+// 重要: 優先度が「高・中」
+export function isImportant(task: Task): boolean {
+  return task.priority === 'HIGH' || task.priority === 'MEDIUM'
+}
+
+// 緊急: 期限切れか、今日から URGENT_DAYS 日後の終わりまでに期限がある
+export function isUrgent(task: Task, now: Date): boolean {
+  if (!task.due_date) return false
+  const limit = addDays(startOfDay(now), URGENT_DAYS + 1)
+  return new Date(task.due_date) < limit
+}
+
+// 未完了のタスクを4つに分ける。各マスの中は、期限の近い順(期限なしは最後)
+export function classifyMatrix(tasks: Task[], now: Date): Record<MatrixQuadrant, Task[]> {
+  const result: Record<MatrixQuadrant, Task[]> = { doNow: [], plan: [], quick: [], later: [] }
+  for (const task of tasks) {
+    if (task.is_done) continue
+    const important = isImportant(task)
+    const urgent = isUrgent(task, now)
+    const quadrant: MatrixQuadrant = important
+      ? urgent ? 'doNow' : 'plan'
+      : urgent ? 'quick' : 'later'
+    result[quadrant].push(task)
+  }
+  const dueTime = (task: Task) => (task.due_date ? new Date(task.due_date).getTime() : Infinity)
+  for (const list of Object.values(result)) list.sort((a, b) => dueTime(a) - dueTime(b))
+  return result
 }

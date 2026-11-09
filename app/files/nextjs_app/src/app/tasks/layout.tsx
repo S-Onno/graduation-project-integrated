@@ -20,6 +20,7 @@ import { IkuseiView, IkuseiHandle } from '@/app/zoo/training/page'
 const TASK_VIEWS = [
   { href: '/tasks', label: 'リスト' },
   { href: '/tasks/calendar', label: 'カレンダー' },
+  { href: '/tasks/matrix', label: 'マトリクス' },
 ]
 
 function TasksHeader() {

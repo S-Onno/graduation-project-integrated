@@ -9,6 +9,7 @@ import { signOut } from 'next-auth/react'
 const TASK_NAV = [
   { href: '/tasks', label: 'タスク管理', icon: '📋' },
   { href: '/tasks/calendar', label: 'カレンダー', icon: '📅' },
+  { href: '/tasks/matrix', label: 'マトリクス', icon: '🎯' },
 ]
 const ZOO_NAV = { href: '/zoo/map', label: '動物園', icon: '🦁' }
 const NAV = [...TASK_NAV, ZOO_NAV]

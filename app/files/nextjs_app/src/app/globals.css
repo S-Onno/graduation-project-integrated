@@ -321,6 +321,42 @@ body {
   .tl-cal-dots { display: flex; padding-left: 0; }
 }
 
+/* アイゼンハワーマトリクス */
+.tl-matrix-hint { font-size: 11px; color: var(--zoo-text-muted); margin: 0 4px 10px; }
+.tl-matrix-cols {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  font-size: 11px; font-weight: 600; color: var(--zoo-text-sub); text-align: center; margin-bottom: 4px;
+}
+.tl-matrix-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tl-quad {
+  background: var(--zoo-bg); border: 1px solid var(--zoo-border); border-top-width: 4px;
+  border-radius: var(--zoo-radius); padding: 8px 6px; min-height: 160px; min-width: 0;
+}
+.tl-quad-doNow { border-top-color: #dc2626; }
+.tl-quad-plan  { border-top-color: #2563eb; }
+.tl-quad-quick { border-top-color: #d97706; }
+.tl-quad-later { border-top-color: #9ca3af; }
+.tl-quad-head {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px;
+  padding: 0 6px 6px; border-bottom: 1px solid var(--zoo-border); margin-bottom: 4px;
+}
+.tl-quad-title { font-size: 14px; font-weight: 700; color: var(--zoo-text); }
+.tl-quad-doNow .tl-quad-title { color: #b91c1c; }
+.tl-quad-plan  .tl-quad-title { color: #1d4ed8; }
+.tl-quad-quick .tl-quad-title { color: #b45309; }
+.tl-quad-axis { font-size: 10px; color: var(--zoo-text-muted); }
+.tl-quad-count { margin-left: auto; font-size: 11px; color: var(--zoo-text-muted); }
+.tl-quad-empty { font-size: 12px; color: var(--zoo-text-muted); text-align: center; padding: 24px 8px; }
+/* マスの中のカードは少し詰める */
+.tl-quad .tl-item { padding: 8px 6px; gap: 8px; }
+
+/* スマホ: 2列だと狭いので、①→②→③→④の順に縦に並べる */
+@media (max-width: 640px) {
+  .tl-matrix-cols { display: none; }
+  .tl-matrix-grid { grid-template-columns: 1fr; }
+  .tl-quad { min-height: 0; }
+}
+
 /* セクション */
 .tl-section { margin-bottom: 8px; }
 .tl-section-header {
