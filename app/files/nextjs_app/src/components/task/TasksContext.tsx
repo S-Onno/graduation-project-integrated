@@ -26,7 +26,7 @@ interface TasksContextValue {
   setQuery: (query: string) => void
   complete: (id: string) => Promise<void>
   remove: (id: string) => Promise<void>
-  openAdd: () => void
+  openAdd: (date?: Date) => void // date を渡すと、その日(終日)を期限に入れた状態で開く
   openEdit: (task: Task) => void
 }
 
@@ -51,6 +51,7 @@ export function TasksProvider({
 }) {
   const { tasks, add, update, complete: completeTask, remove: removeTask } = useTasks(enabled)
   const [showForm, setShowForm] = useState(false)
+  const [addDate, setAddDate] = useState<Date | undefined>(undefined)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
   const [query, setQuery] = useState('')
@@ -101,7 +102,10 @@ export function TasksProvider({
     setQuery,
     complete,
     remove,
-    openAdd: () => setShowForm(true),
+    openAdd: (date) => {
+      setAddDate(date)
+      setShowForm(true)
+    },
     openEdit: (task) => setEditingTask(task),
   }
 
@@ -109,7 +113,9 @@ export function TasksProvider({
     <TasksContext.Provider value={value}>
       {children}
 
-      {showForm && <TaskForm onAdd={handleAdd} onClose={() => setShowForm(false)} />}
+      {showForm && (
+        <TaskForm onAdd={handleAdd} defaultDate={addDate} onClose={() => setShowForm(false)} />
+      )}
 
       {editingTask && (
         <TaskForm
