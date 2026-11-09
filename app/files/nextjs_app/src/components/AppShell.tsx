@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
@@ -11,7 +12,17 @@ const TASK_NAV = [
 const ZOO_NAV = { href: '/zoo/map', label: '動物園', icon: '🦁' }
 const NAV = [...TASK_NAV, ZOO_NAV]
 
-export function AppShell({ children, fullBleed = false }: { children: React.ReactNode; fullBleed?: boolean }) {
+export function AppShell({
+  children,
+  fullBleed = false,
+  taskNavFooter,
+}: {
+  children: React.ReactNode
+  fullBleed?: boolean
+  // サイドバーのタスクの並びの一番下に置く部品(タスク画面の検索など)。
+  // 引数の関数を呼ぶと、スマホで開いたサイドバーを閉じる
+  taskNavFooter?: (closeSidebar: () => void) => ReactNode
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
 
@@ -45,6 +56,9 @@ export function AppShell({ children, fullBleed = false }: { children: React.Reac
               <span>{item.label}</span>
             </Link>
           ))}
+          {taskNavFooter && (
+            <div className="sidebar-nav-footer">{taskNavFooter(() => setSidebarOpen(false))}</div>
+          )}
         </nav>
 
         {/* ゲーム（動物園）系のナビ：視覚的に区切って、大きく目立たせる */}
