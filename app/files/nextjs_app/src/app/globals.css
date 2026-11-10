@@ -497,29 +497,6 @@ body {
 .stage-bar { background: var(--bg-primary); border-radius: 99px; height: 6px; overflow: hidden; }
 .stage-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent-purple), var(--accent-gold)); transition: width 0.5s; }
 
-.auth-container {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(ellipse at center, #1a0a3a 0%, #0a0a1a 70%);
-}
-.auth-box {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 40px;
-  width: 100%; max-width: 400px; box-shadow: var(--shadow);
-  animation: fadeInUp 0.6s ease;
-}
-.auth-logo { text-align: center; margin-bottom: 32px; }
-.auth-logo-icon { font-size: 48px; display: block; margin-bottom: 8px; animation: float 3s ease-in-out infinite; }
-.auth-logo-title {
-  font-family: var(--font-game); font-size: 24px; font-weight: 700;
-  background: linear-gradient(135deg, var(--accent-purple-light), var(--accent-gold));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-}
-.auth-error {
-  background: rgba(239,68,68,0.1); border: 1px solid var(--accent-red);
-  border-radius: var(--radius-sm); padding: 10px 14px;
-  font-size: 13px; color: var(--accent-red); margin-bottom: 16px;
-}
-
 .toast {
   position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
   background: var(--bg-card); border: 1px solid var(--accent-green);
@@ -799,4 +776,86 @@ body {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
 }
+
+/* ==========================================================================
+   ログイン・新規登録(動物園の案内板のデザイン)
+   サバンナの壁紙の上に、木の看板とクリーム色のカード
+   ========================================================================== */
+.za-page {
+  --font-main: var(--font-round);
+  font-family: var(--font-round); color: var(--zoo-text);
+  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding: 32px 16px; position: relative;
+  background: var(--zoo-bg-sub) url('/assets/areas/savanna/background.png') center / cover no-repeat;
+  image-rendering: pixelated;
+}
+.za-page::before { /* 壁紙を少し薄くして、文字を読みやすくする */
+  content: ''; position: absolute; inset: 0; background: rgba(244, 234, 210, 0.45);
+}
+.za-box { position: relative; width: 100%; max-width: 400px; image-rendering: auto; }
+
+/* 木の看板 */
+.za-sign {
+  position: relative; text-align: center; margin: 0 18px -6px; z-index: 1;
+  background: var(--wood); color: var(--cream);
+  border: 2px solid var(--wood-dark); border-radius: var(--zoo-radius);
+  box-shadow: 0 3px 0 var(--wood-dark); padding: 14px 16px 12px;
+}
+.za-sign::before, .za-sign::after { /* 看板の釘 */
+  content: ''; position: absolute; top: 9px; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--wood-dark); box-shadow: 0 1px 0 rgba(255, 250, 240, 0.35);
+}
+.za-sign::before { left: 9px; }
+.za-sign::after { right: 9px; }
+.za-sign-title {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 26px; font-weight: 700; letter-spacing: 0.04em;
+}
+.za-sign-title svg { color: #f0dcb5; }
+.za-sign-sub { font-size: 12px; color: #f0dcb5; margin-top: 2px; }
+
+/* カード */
+.za-card {
+  background: var(--cream); border: 2px solid var(--wood); border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--wood); padding: 28px 24px 22px;
+}
+.za-card h1 { font-size: 18px; font-weight: 700; margin-bottom: 16px; text-align: center; }
+.za-group { margin-bottom: 14px; }
+.za-label { display: block; font-size: 13px; font-weight: 700; color: var(--zoo-text-sub); margin-bottom: 6px; }
+.za-label small { font-weight: 400; color: var(--zoo-text-muted); margin-left: 6px; }
+.za-field { position: relative; display: flex; }
+.za-input {
+  width: 100%; background: var(--zoo-bg-sub); border: 2px solid var(--zoo-border);
+  border-radius: var(--zoo-radius); padding: 11px 14px; font-size: 15px;
+  color: var(--zoo-text); font-family: var(--font-round); outline: none; transition: border-color 0.15s;
+}
+.za-input:focus { border-color: var(--c-green); background: #fff; }
+.za-input::placeholder { color: var(--zoo-text-muted); }
+.za-field .za-input { padding-right: 64px; }
+.za-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: transparent; border: none; color: var(--zoo-text-sub); font-size: 12px;
+  font-family: var(--font-round); padding: 6px 8px; border-radius: 6px; cursor: pointer;
+}
+.za-toggle:hover { background: var(--zoo-bg-hover); color: var(--zoo-text); }
+.za-hint { font-size: 11px; color: var(--zoo-text-muted); margin-top: 5px; }
+.za-submit {
+  width: 100%; margin-top: 8px; padding: 12px; font-size: 15px; font-weight: 700;
+  font-family: var(--font-round); color: #fff; cursor: pointer;
+  background: var(--c-green); border: 2px solid var(--c-green-dark); border-radius: var(--zoo-radius);
+  box-shadow: 0 3px 0 var(--c-green-dark);
+}
+.za-submit:hover:not(:disabled) { background: var(--zoo-purple-light); }
+.za-submit:active:not(:disabled) { transform: translateY(3px); box-shadow: none; }
+.za-submit:disabled { opacity: 0.6; cursor: default; }
+.za-alert {
+  border-radius: var(--zoo-radius); padding: 10px 12px; font-size: 13px; margin-bottom: 14px; border: 2px solid;
+}
+.za-alert.error { background: var(--zoo-red-bg); color: var(--c-red); border-color: var(--c-red); }
+.za-alert.success { background: var(--zoo-purple-bg); color: var(--c-green-dark); border-color: var(--c-green); }
+.za-switch {
+  text-align: center; margin-top: 18px; padding-top: 14px; border-top: 2px dashed var(--zoo-border);
+  font-size: 13px; color: var(--zoo-text-sub);
+}
+.za-switch a { color: var(--c-green-dark); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 
