@@ -41,7 +41,17 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         token.is_admin = (user as { is_admin?: boolean }).is_admin ?? false
+        return token
       }
+      // ログイン中の確認のたびに、ユーザーが今も DB にいるかを確かめる。
+      // DB を作り直した・ユーザーを消したあとに、ブラウザの古いログインが残らないようにするため。
+      // ここでエラーにすると、NextAuth は Cookie を消して「ログインしていない」として扱う
+      const current = await prisma.user.findUnique({
+        where: { id: token.id as string },
+        select: { is_admin: true },
+      })
+      if (!current) throw new Error('ユーザーが見つからないため、ログインを取り消します')
+      token.is_admin = current.is_admin // 管理者の権限を変えたら、すぐに反映する
       return token
     },
     async session({ session, token }) {
