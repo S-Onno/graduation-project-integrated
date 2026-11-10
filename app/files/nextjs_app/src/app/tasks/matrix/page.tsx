@@ -2,7 +2,7 @@
 
 import { TaskCard } from '@/components/task/TaskCard'
 import { useTasksContext } from '@/components/task/TasksContext'
-import { classifyMatrix, URGENT_DAYS } from '@/lib/taskFilters'
+import { classifyMatrix, MATRIX_LABEL, URGENT_DAYS } from '@/lib/taskFilters'
 import type { MatrixQuadrant } from '@/lib/taskFilters'
 
 /* ============================================================
@@ -16,14 +16,14 @@ import type { MatrixQuadrant } from '@/lib/taskFilters'
 
 // 表示する順番(PC では 左上 → 右上 → 左下 → 右下)
 const QUADRANTS: { key: MatrixQuadrant; title: string; axis: string; empty: string }[] = [
-  { key: 'doNow', title: '今すぐやる', axis: '重要 × 緊急', empty: '急ぎの大事なタスクはありません。' },
-  { key: 'plan', title: '計画してやる', axis: '重要 × 緊急でない', empty: '先の大事なタスクはありません。' },
-  { key: 'quick', title: 'すぐ片付ける', axis: '重要でない × 緊急', empty: '急ぎの細かいタスクはありません。' },
-  { key: 'later', title: '後回し', axis: '重要でない × 緊急でない', empty: '後回しのタスクはありません。' },
+  { key: 'doNow', title: MATRIX_LABEL.doNow, axis: '重要 × 緊急', empty: '急ぎの大事なタスクはありません。' },
+  { key: 'plan', title: MATRIX_LABEL.plan, axis: '重要 × 緊急でない', empty: '先の大事なタスクはありません。' },
+  { key: 'quick', title: MATRIX_LABEL.quick, axis: '重要でない × 緊急', empty: '急ぎの細かいタスクはありません。' },
+  { key: 'later', title: MATRIX_LABEL.later, axis: '重要でない × 緊急でない', empty: '後回しのタスクはありません。' },
 ]
 
 export default function TaskMatrixPage() {
-  const { visibleTasks, complete, remove, openEdit } = useTasksContext()
+  const { visibleTasks, complete, remove, openEdit, openDetail } = useTasksContext()
   const matrix = classifyMatrix(visibleTasks, new Date())
 
   return (
@@ -51,7 +51,7 @@ export default function TaskMatrixPage() {
             ) : (
               <div className="tl-list">
                 {matrix[q.key].map((task) => (
-                  <TaskCard key={task.id} task={task} onComplete={complete} onDelete={remove} onEdit={openEdit} />
+                  <TaskCard key={task.id} task={task} onComplete={complete} onDelete={remove} onEdit={openEdit} onOpen={openDetail} />
                 ))}
               </div>
             )}

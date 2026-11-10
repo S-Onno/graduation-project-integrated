@@ -47,7 +47,7 @@ function isOverdue(task: Task, now: Date): boolean {
 }
 
 export default function TaskCalendarPage() {
-  const { visibleTasks, complete, remove, openEdit, openAdd } = useTasksContext()
+  const { visibleTasks, complete, remove, openEdit, openAdd, openDetail } = useTasksContext()
   const [today] = useState(() => new Date())
   const [month, setMonth] = useState(() => startOfMonth(today))
   const [selected, setSelected] = useState(today)
@@ -167,7 +167,7 @@ export default function TaskCalendarPage() {
         ) : (
           <div className="tl-list">
             {selectedTasks.map((task) => (
-              <TaskCard key={task.id} task={task} onComplete={complete} onDelete={remove} onEdit={openEdit} />
+              <TaskCard key={task.id} task={task} onComplete={complete} onDelete={remove} onEdit={openEdit} onOpen={openDetail} />
             ))}
           </div>
         )}

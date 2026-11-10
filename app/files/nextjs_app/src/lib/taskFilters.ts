@@ -86,17 +86,27 @@ export function isUrgent(task: Task, now: Date): boolean {
   return new Date(task.due_date) < limit
 }
 
+// マスの名前
+export const MATRIX_LABEL: Record<MatrixQuadrant, string> = {
+  doNow: '今すぐやる',
+  plan: '計画してやる',
+  quick: 'すぐ片付ける',
+  later: '後回し',
+}
+
+// 1つのタスクがどのマスに入るか
+export function quadrantOf(task: Task, now: Date): MatrixQuadrant {
+  const important = isImportant(task)
+  const urgent = isUrgent(task, now)
+  return important ? (urgent ? 'doNow' : 'plan') : urgent ? 'quick' : 'later'
+}
+
 // 未完了のタスクを4つに分ける。各マスの中は、期限の近い順(期限なしは最後)
 export function classifyMatrix(tasks: Task[], now: Date): Record<MatrixQuadrant, Task[]> {
   const result: Record<MatrixQuadrant, Task[]> = { doNow: [], plan: [], quick: [], later: [] }
   for (const task of tasks) {
     if (task.is_done) continue
-    const important = isImportant(task)
-    const urgent = isUrgent(task, now)
-    const quadrant: MatrixQuadrant = important
-      ? urgent ? 'doNow' : 'plan'
-      : urgent ? 'quick' : 'later'
-    result[quadrant].push(task)
+    result[quadrantOf(task, now)].push(task)
   }
   const dueTime = (task: Task) => (task.due_date ? new Date(task.due_date).getTime() : Infinity)
   for (const list of Object.values(result)) list.sort((a, b) => dueTime(a) - dueTime(b))

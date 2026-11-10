@@ -15,9 +15,10 @@ interface Props {
   onComplete: (id: string) => void
   onDelete: (id: string) => void
   onEdit: (task: Task) => void
+  onOpen?: (task: Task) => void // タイトルやメモを押したときに、詳細を開く
 }
 
-export function TaskCard({ task, onComplete, onDelete, onEdit }: Props) {
+export function TaskCard({ task, onComplete, onDelete, onEdit, onOpen }: Props) {
   const isOverdue = !task.is_done && !!task.due_date && new Date(task.due_date) < new Date()
 
   const isAllDay = !!task.due_date &&
@@ -48,7 +49,24 @@ export function TaskCard({ task, onComplete, onDelete, onEdit }: Props) {
         {task.is_done && <Icon name="zoo" size={13} />}
       </button>
 
-      <div className="tl-item-content">
+      {/* タイトルとメモの部分を押すと、詳細を開く(キーボードは Enter・スペース) */}
+      <div
+        className={`tl-item-content${onOpen ? ' openable' : ''}`}
+        role={onOpen ? 'button' : undefined}
+        tabIndex={onOpen ? 0 : undefined}
+        aria-label={onOpen ? `${task.title}の詳細を開く` : undefined}
+        onClick={onOpen ? () => onOpen(task) : undefined}
+        onKeyDown={
+          onOpen
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onOpen(task)
+                }
+              }
+            : undefined
+        }
+      >
         <p className="tl-item-title">{task.title}</p>
         {task.description && (
           <p className="tl-item-desc">{task.description}</p>
@@ -62,7 +80,8 @@ export function TaskCard({ task, onComplete, onDelete, onEdit }: Props) {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+      {/* 編集・削除(スマホでは詳細の中から行うので、カードには出さない) */}
+      <div className="tl-item-actions" style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
         <button className="tl-delete-btn" onClick={() => onEdit(task)} aria-label="編集">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
             <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
