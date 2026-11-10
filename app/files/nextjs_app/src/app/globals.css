@@ -657,6 +657,55 @@ body {
   padding: 4px 12px; font-size: 13px; font-weight: 700; font-family: var(--font-round); cursor: pointer;
 }
 .tl-toast-action:hover { background: #fff3da; }
+
+/* ---- タスクの詳細 ---- */
+/* カードのタイトルとメモの部分は、押すと詳細が開く */
+.tl-item-content.openable { cursor: pointer; border-radius: 6px; }
+.tl-item-content.openable:focus-visible { outline: 2px solid var(--c-green); outline-offset: 2px; }
+/* カードのメモは2行まで(続きは詳細で読む) */
+.tl-item-desc {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  white-space: pre-wrap;
+}
+
+.tl-detail-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
+.tl-detail-head h3 { flex: 1; margin-bottom: 0; word-break: break-word; }
+.tl-detail-head h3.done { text-decoration: line-through; color: var(--zoo-text-sub); }
+.tl-detail-close {
+  flex-shrink: 0; display: inline-flex; padding: 6px; border-radius: var(--zoo-radius);
+  background: transparent; border: 2px solid var(--zoo-border); color: var(--zoo-text-sub); cursor: pointer;
+}
+.tl-detail-close:hover { background: var(--zoo-bg-hover); color: var(--zoo-text); }
+.tl-detail-memo {
+  white-space: pre-wrap; word-break: break-word; font-size: 14px; line-height: 1.7; color: var(--zoo-text);
+  background: var(--zoo-bg-sub); border: 2px dashed var(--zoo-border); border-radius: var(--zoo-radius);
+  padding: 10px 12px; margin-bottom: 14px; max-height: 40dvh; overflow-y: auto;
+}
+.tl-detail-memo.empty { color: var(--zoo-text-muted); font-size: 13px; }
+.tl-detail-meta {
+  display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; align-items: baseline;
+  font-size: 13px; margin-bottom: 18px;
+}
+.tl-detail-meta dt { color: var(--zoo-text-sub); font-weight: 700; }
+.tl-detail-meta dd { color: var(--zoo-text); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tl-detail-due {
+  font-family: var(--font-dot); font-size: 11px; padding: 1px 8px; border-radius: 99px;
+  background: var(--zoo-amber-bg); color: var(--c-yellow-ink);
+}
+.tl-detail-due.overdue { background: var(--zoo-red-bg); color: var(--c-red); }
+.tl-detail-priority { font-weight: 700; padding: 1px 10px; border-radius: 99px; border: 2px solid var(--zoo-border); }
+.tl-detail-priority.priority-high   { color: var(--c-red);    border-color: var(--c-red); }
+.tl-detail-priority.priority-medium { color: var(--c-yellow); border-color: var(--c-yellow); }
+.tl-detail-priority.priority-low    { color: var(--c-blue);   border-color: var(--c-blue); }
+.tl-detail-priority.priority-none   { color: var(--zoo-text-muted); }
+.tl-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.tl-detail-delete { color: var(--c-red); }
+
+/* スマホ: 編集・削除は詳細の中から行うので、カードには出さない */
+@media (max-width: 768px) {
+  .tl-item-actions { display: none !important; }
+  .tl-detail-actions > button { flex: 1; }
+}
 .tl-modal { border: 2px solid var(--wood); border-radius: 14px; background: var(--cream); box-shadow: 4px 4px 0 var(--wood); }
 .tl-modal h3 { font-weight: 700; }
 .tl-input { border-width: 2px; }

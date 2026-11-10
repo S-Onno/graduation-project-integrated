@@ -7,7 +7,7 @@ import { splitByDone } from '@/lib/taskFilters'
 
 // タスク一覧(未完了と完了済み)。見出しや育成パネルは layout.tsx が表示する
 export default function TaskListPage() {
-  const { visibleTasks, query, complete, remove, openEdit } = useTasksContext()
+  const { visibleTasks, query, complete, remove, openEdit, openDetail } = useTasksContext()
   const [pendingOpen, setPendingOpen] = useState(true)
   const [doneOpen, setDoneOpen] = useState(true)
   const { pending, done } = splitByDone(visibleTasks)
@@ -32,7 +32,7 @@ export default function TaskListPage() {
           ) : (
             <div className="tl-list">
               {pending.map(task => (
-                <TaskCard key={task.id} task={task} onComplete={complete} onDelete={remove} onEdit={openEdit} />
+                <TaskCard key={task.id} task={task} onComplete={complete} onDelete={remove} onEdit={openEdit} onOpen={openDetail} />
               ))}
             </div>
           )
@@ -50,7 +50,7 @@ export default function TaskListPage() {
           {doneOpen && (
             <div className="tl-list">
               {done.map(task => (
-                <TaskCard key={task.id} task={task} onComplete={complete} onDelete={remove} onEdit={openEdit} />
+                <TaskCard key={task.id} task={task} onComplete={complete} onDelete={remove} onEdit={openEdit} onOpen={openDetail} />
               ))}
             </div>
           )}

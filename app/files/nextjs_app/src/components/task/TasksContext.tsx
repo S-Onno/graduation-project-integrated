@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from 'react'
 import { useTasks } from '@/hooks/useTasks'
 import { TaskForm } from '@/components/task/TaskForm'
+import { TaskDetail } from '@/components/task/TaskDetail'
 import { filterTasks } from '@/lib/taskFilters'
 import type { CompleteResult, PriorityValue, Task } from '@/lib/tasks'
 
@@ -46,6 +47,7 @@ interface TasksContextValue {
   remove: (id: string) => void
   openAdd: (date?: Date) => void // date を渡すと、その日(終日)を期限に入れた状態で開く
   openEdit: (task: Task) => void
+  openDetail: (task: Task) => void
 }
 
 const TasksContext = createContext<TasksContextValue | null>(null)
@@ -80,6 +82,7 @@ export function TasksProvider({
   const [showForm, setShowForm] = useState(false)
   const [addDate, setAddDate] = useState<Date | undefined>(undefined)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(null) // 詳細を開いているタスク
   const [toast, setToast] = useState<Toast | null>(null)
   const [query, setQuery] = useState('')
 
@@ -252,6 +255,10 @@ export function TasksProvider({
     if (ok) setEditingTask(null)
   }
 
+  // 詳細は id で持ち、一覧から探して表示する(編集したら最新の内容が出る。削除したら閉じる)
+  const detailTask = detailId ? tasks.find((t) => t.id === detailId) ?? null : null
+  const closeDetail = useCallback(() => setDetailId(null), [])
+
   const value: TasksContextValue = {
     tasks,
     visibleTasks: filterTasks(tasks, query),
@@ -264,11 +271,31 @@ export function TasksProvider({
       setShowForm(true)
     },
     openEdit: (task) => setEditingTask(task),
+    openDetail: (task) => setDetailId(task.id),
   }
 
   return (
     <TasksContext.Provider value={value}>
       {children}
+
+      {detailTask && (
+        <TaskDetail
+          task={detailTask}
+          onClose={closeDetail}
+          onComplete={(task) => {
+            closeDetail()
+            complete(task.id)
+          }}
+          onEdit={(task) => {
+            closeDetail()
+            setEditingTask(task)
+          }}
+          onDelete={(task) => {
+            closeDetail()
+            remove(task.id)
+          }}
+        />
+      )}
 
       {showForm && (
         <TaskForm onAdd={handleAdd} defaultDate={addDate} onClose={() => setShowForm(false)} />
