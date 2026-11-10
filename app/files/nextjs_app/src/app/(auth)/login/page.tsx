@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { PasswordInput } from '@/components/auth/PasswordInput'
 
-export default function LoginPage() {
+// ログイン(壁紙と看板は (auth)/layout.tsx)
+function LoginForm() {
   const router = useRouter()
+  const registered = useSearchParams().get('registered') === '1' // 新規登録から来たとき
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -28,51 +31,65 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="auth-container">
-      <div className="auth-box">
-        <div className="auth-logo">
-          <span className="auth-logo-icon">🦁</span>
-          <span className="auth-logo-title">ZooTask</span>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-            タスクを完了して動物園を育てよう
-          </p>
+    <div className="za-card">
+      <h1>ログイン</h1>
+
+      {registered && !error && (
+        <div className="za-alert success" role="status">
+          登録が完了しました。ログインしてください。
         </div>
+      )}
+      {error && (
+        <div className="za-alert error" role="alert">
+          {error}
+        </div>
+      )}
 
-        {error && <div className="auth-error">{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <div className="za-group">
+          <label className="za-label" htmlFor="login-email">
+            メールアドレス
+          </label>
+          <input
+            id="login-email"
+            className="za-input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="example@mail.com"
+            autoComplete="email"
+            required
+          />
+        </div>
+        <div className="za-group">
+          <label className="za-label" htmlFor="login-password">
+            パスワード
+          </label>
+          <PasswordInput
+            id="login-password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="current-password"
+            placeholder="パスワード"
+          />
+        </div>
+        <button type="submit" className="za-submit" disabled={loading}>
+          {loading ? 'ログイン中...' : 'ログイン'}
+        </button>
+      </form>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">メールアドレス</label>
-            <input
-              className="form-input"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="example@mail.com"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">パスワード</label>
-            <input
-              className="form-input"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="パスワード"
-              required
-            />
-          </div>
-          <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '8px' }} disabled={loading}>
-            {loading ? 'ログイン中...' : 'ログイン'}
-          </button>
-        </form>
-
-        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-          アカウントをお持ちでない方は{' '}
-          <Link href="/register" style={{ color: 'var(--accent-purple-light)' }}>新規登録</Link>
-        </p>
-      </div>
+      <p className="za-switch">
+        はじめての方は <Link href="/register">新規登録</Link>
+      </p>
     </div>
+  )
+}
+
+// URL の ?registered=1 を読むので、Suspense で包む(Next.js のきまり)
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   )
 }

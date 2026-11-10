@@ -3,7 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { PasswordInput } from '@/components/auth/PasswordInput'
 
+// パスワードの長さ(サーバー側 /api/auth/register と同じ)
+const PASSWORD_MIN = 8
+const PASSWORD_MAX = 128
+
+// 新規登録(壁紙と看板は (auth)/layout.tsx)
 export default function RegisterPage() {
   const router = useRouter()
   const [name, setName] = useState('')
@@ -25,7 +31,7 @@ export default function RegisterPage() {
 
     setLoading(false)
     if (!res.ok) {
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       setError(data.error ?? '登録に失敗しました')
     } else {
       router.push('/login?registered=1')
@@ -33,62 +39,72 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="auth-container">
-      <div className="auth-box">
-        <div className="auth-logo">
-          <span className="auth-logo-icon">🦁</span>
-          <span className="auth-logo-title">ZooTask</span>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-            新規アカウント登録
+    <div className="za-card">
+      <h1>新規登録</h1>
+
+      {error && (
+        <div className="za-alert error" role="alert">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <div className="za-group">
+          <label className="za-label" htmlFor="register-name">
+            ニックネーム<small>任意</small>
+          </label>
+          <input
+            id="register-name"
+            className="za-input"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="例: 飼育員ナオ"
+            autoComplete="nickname"
+            maxLength={100}
+          />
+        </div>
+        <div className="za-group">
+          <label className="za-label" htmlFor="register-email">
+            メールアドレス
+          </label>
+          <input
+            id="register-email"
+            className="za-input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="example@mail.com"
+            autoComplete="email"
+            required
+          />
+        </div>
+        <div className="za-group">
+          <label className="za-label" htmlFor="register-password">
+            パスワード
+          </label>
+          <PasswordInput
+            id="register-password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="new-password"
+            placeholder={`${PASSWORD_MIN}文字以上`}
+            minLength={PASSWORD_MIN}
+            maxLength={PASSWORD_MAX}
+            describedBy="register-password-hint"
+          />
+          <p id="register-password-hint" className="za-hint">
+            {PASSWORD_MIN}〜{PASSWORD_MAX}文字で決めてください
           </p>
         </div>
+        <button type="submit" className="za-submit" disabled={loading}>
+          {loading ? '登録中...' : 'アカウントを作る'}
+        </button>
+      </form>
 
-        {error && <div className="auth-error">{error}</div>}
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">ニックネーム</label>
-            <input
-              className="form-input"
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="例: 勇者ナオ"
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">メールアドレス *</label>
-            <input
-              className="form-input"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="example@mail.com"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">パスワード *</label>
-            <input
-              className="form-input"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="6文字以上"
-              minLength={6}
-              required
-            />
-          </div>
-          <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '8px' }} disabled={loading}>
-            {loading ? '登録中...' : 'アカウントを作成'}
-          </button>
-        </form>
-
-        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-          すでにアカウントをお持ちの方は{' '}
-          <Link href="/login" style={{ color: 'var(--accent-purple-light)' }}>ログイン</Link>
-        </p>
-      </div>
+      <p className="za-switch">
+        アカウントをお持ちの方は <Link href="/login">ログイン</Link>
+      </p>
     </div>
   )
 }
