@@ -1,5 +1,6 @@
-import { AnimalStage, AreaType } from '@/generated/prisma/client'
+import { AnimalStage } from '@/generated/prisma/client'
 import { prisma } from './prisma'
+import { ADULTS_TO_UNLOCK, AREA_ORDER } from './zooAreas'
 
 export function calcStage(taskCount: number): AnimalStage {
   if (taskCount >= 9) return 'ADULT'
@@ -7,17 +8,16 @@ export function calcStage(taskCount: number): AnimalStage {
   return 'BABY'
 }
 
-const AREA_ORDER: AreaType[] = ['JUNGLE', 'SAVANNA', 'SNOW', 'WATER']
-
 export async function acquireNewAnimal(userId: string): Promise<void> {
   const unlockedAreas = await prisma.userArea.findMany({
     where: { userId, is_unlocked: true },
-    include: { area: true },
-    orderBy: { area: { order: 'desc' } },
   })
   if (unlockedAreas.length === 0) return
 
-  const latestArea = unlockedAreas[0].area_type
+  // 開園しているエリアのうち、開園する順番(AREA_ORDER)がいちばん後のエリアから動物が来る
+  const unlockedTypes = new Set<string>(unlockedAreas.map((a) => a.area_type))
+  const latestArea = [...AREA_ORDER].reverse().find((type) => unlockedTypes.has(type))
+  if (!latestArea) return
   const animals = await prisma.animal.findMany({ where: { area_type: latestArea } })
   if (animals.length === 0) return
 
@@ -39,7 +39,7 @@ export async function checkAreaUnlock(userId: string, animalId: string): Promise
     },
   })
 
-  if (adultCount < 3) return
+  if (adultCount < ADULTS_TO_UNLOCK) return
 
   const currentIndex = AREA_ORDER.indexOf(animal.area_type)
   if (currentIndex === -1 || currentIndex >= AREA_ORDER.length - 1) return

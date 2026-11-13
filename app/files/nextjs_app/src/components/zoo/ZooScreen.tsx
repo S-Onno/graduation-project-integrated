@@ -1,11 +1,19 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { AREA_DEFS, DEFAULT_WALK_AREA, TEST_EXTRA_ANIMALS } from '@/lib/zooAreas'
+import {
+  ADULTS_TO_UNLOCK,
+  AREA_DEFS,
+  AREA_ORDER,
+  DEFAULT_WALK_AREA,
+  FIRST_AREA,
+  findAnimalDef,
+  zooAnimalDef,
+} from '@/lib/zooAreas'
 import type { AnimalDef, AreaDef, AreaType } from '@/lib/zooAreas'
 import type { ZooPixiControl } from '@/components/zoo/pixi/ZooPixiCanvas'
 
@@ -16,17 +24,13 @@ import type { ZooPixiControl } from '@/components/zoo/pixi/ZooPixiCanvas'
  * - エリアの切り替えは、右下の「エリアマップ」ボタンから行う
  * - 動物と演出(タップの反応・目印・光の柱など)は PixiJS(<canvas>)で描く
  *   (components/zoo/pixi/)。壁紙・パネル・ボタンは HTML のまま
+ * - 歩いているのは、育成パネルで「動物園へ送る」をした大人の動物だけ
  * - 動物は、スプライトシート(JSON + PNG)があればそのアニメーションで、
  *   なければ絵文字で、画面内を歩き回る
  * ============================================================ */
 
 // PixiJS はブラウザでしか動かないので、この画面を開いたときだけ読み込む(ほかの画面は重くならない)
 const ZooPixiCanvas = dynamic(() => import('@/components/zoo/pixi/ZooPixiCanvas'), { ssr: false })
-
-// エリアごとの動物の一覧。描き直しのたびに作り直さないように、最初に1回だけ作る
-const ANIMALS_BY_AREA = Object.fromEntries(
-  AREA_DEFS.map((def) => [def.type, [...def.animals, ...(TEST_EXTRA_ANIMALS[def.type] ?? [])]]),
-) as Record<AreaType, AnimalDef[]>
 
 // ===== 型 =====
 interface Area {
@@ -51,8 +55,8 @@ interface MenuButton {
   href?: string
 }
 
-// エリアマップでの並び順(左上→右上→左下→右下)
-const AREA_MAP_ORDER: AreaType[] = ['JUNGLE', 'SAVANNA', 'WATER', 'SNOW']
+// エリアマップでの並び順(左上→右上→左下→右下)。開園する順番と同じ
+const AREA_MAP_ORDER: AreaType[] = AREA_ORDER
 
 // ===== 右下のメニューボタン(機能は未定なので、ここを書き換えるだけで変更できる) =====
 const MENU_BUTTONS: MenuButton[] = [
@@ -82,7 +86,7 @@ export function ZooScreen() {
   const router = useRouter()
   const [areas, setAreas] = useState<Area[]>([])
   const [userAnimals, setUserAnimals] = useState<UserAnimal[]>([])
-  const [currentType, setCurrentType] = useState<AreaType>('SAVANNA') // 開発中はサバンナから表示
+  const [currentType, setCurrentType] = useState<AreaType>(FIRST_AREA) // 最初はサバンナを表示
   const [mapOpen, setMapOpen] = useState(false)
   const [previewAll, setPreviewAll] = useState(true) // テスト用: 全エリアを解放した状態で確認する
   const [notice, setNotice] = useState('')
@@ -92,18 +96,37 @@ export function ZooScreen() {
     if (status === 'unauthenticated') router.push('/login')
   }, [status, router])
 
-  const fetchData = useCallback(async () => {
-    const [areasRes, animalsRes] = await Promise.all([
-      fetch('/api/areas'),
-      fetch('/api/user-animals'),
-    ])
-    if (areasRes.ok) setAreas(await areasRes.json())
-    if (animalsRes.ok) setUserAnimals(await animalsRes.json())
-  }, [])
-
+  // エリアと動物を読み込む(読み込みが終わってから state に入れる)
   useEffect(() => {
-    if (session) fetchData()
-  }, [session, fetchData])
+    if (!session) return
+    let ignore = false
+    Promise.all([fetch('/api/areas'), fetch('/api/user-animals')])
+      .then(async ([areasRes, animalsRes]) => {
+        const areaData = areasRes.ok ? ((await areasRes.json()) as Area[]) : null
+        const animalData = animalsRes.ok ? ((await animalsRes.json()) as UserAnimal[]) : null
+        if (ignore) return
+        if (areaData) setAreas(areaData)
+        if (animalData) setUserAnimals(animalData)
+      })
+      .catch((error) => console.error('動物園のデータを読み込めませんでした', error))
+    return () => {
+      ignore = true
+    }
+  }, [session])
+
+  // エリアごとの、動物園に送った(配置した)動物。動物園にいるのは大人なので、大人の見た目で歩かせる
+  // userAnimals が変わったときだけ作り直す(作り直すと、PixiJS の画面も作り直しになるため)
+  const placedByArea = useMemo(() => {
+    const map: Record<AreaType, AnimalDef[]> = { SAVANNA: [], JUNGLE: [], SNOW: [], WATER: [] }
+    for (const userAnimal of userAnimals) {
+      if (!userAnimal.is_placed) continue
+      const type = userAnimal.animal.area_type as AreaType
+      if (!map[type]) continue
+      const def = findAnimalDef(userAnimal.animal.name)
+      map[type].push(def ? zooAnimalDef(def) : { name: userAnimal.animal.name, emoji: '🐾' })
+    }
+    return map
+  }, [userAnimals])
 
   if (status === 'loading') return null
 
@@ -112,7 +135,7 @@ export function ZooScreen() {
     if (previewAll) return true
     const found = areas.find((a) => a.area_type === type)
     if (found) return found.is_unlocked
-    return type === 'JUNGLE' // APIから取れない場合は、ジャングルだけ解放扱い
+    return type === FIRST_AREA // APIから取れない場合は、最初のエリアだけ開園扱い
   }
 
   const areaName = (def: AreaDef): string =>
@@ -150,9 +173,9 @@ export function ZooScreen() {
   const userName = session?.user?.name ?? 'ゲスト'
   const unlockedCount = AREA_DEFS.filter((a) => isUnlocked(a.type)).length
   const placedCount = userAnimals.filter((a) => a.is_placed).length
-  const activeType: AreaType = isUnlocked(currentType) ? currentType : 'JUNGLE'
+  const activeType: AreaType = isUnlocked(currentType) ? currentType : FIRST_AREA
   const activeDef = AREA_DEFS.find((a) => a.type === activeType) ?? AREA_DEFS[0]
-  const animalsHere = ANIMALS_BY_AREA[activeDef.type]
+  const animalsHere = placedByArea[activeDef.type]
 
   return (
     <div className="zoo-stage">
@@ -189,8 +212,25 @@ export function ZooScreen() {
         <span>
           {activeDef.emoji} {areaName(activeDef)}
         </span>
-        <span className="zoo-area-sub">大人 {adultCount(activeDef.type)} / 3 匹</span>
+        <span className="zoo-area-sub">
+          大人 {adultCount(activeDef.type)} / {ADULTS_TO_UNLOCK} 匹
+        </span>
       </div>
+
+      {/* ===== まだ動物がいないエリアの案内 ===== */}
+      {animalsHere.length === 0 && (
+        <div className="zoo-panel zoo-empty">
+          <p className="zoo-empty-title">まだ動物がいません</p>
+          <p className="zoo-empty-text">
+            タスクを完了して動物を大人に育て、
+            <br />
+            育成パネルの「動物園へ送る」で迎えましょう
+          </p>
+          <button className="zoo-btn zoo-empty-btn" onClick={() => router.push('/tasks')}>
+            📋 タスクへ
+          </button>
+        </div>
+      )}
 
       {/* ===== 右上: テスト用(あとで削除) ===== */}
       <button className="zoo-btn zoo-debug" onClick={() => setPreviewAll((prev) => !prev)}>
@@ -478,6 +518,30 @@ export function ZooScreen() {
         .zoo-area-name {
           font-size: 12px;
           font-weight: bold;
+        }
+
+        /* ---- まだ動物がいないエリアの案内 ---- */
+        .zoo-empty {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          max-width: calc(100% - 32px);
+          text-align: center;
+          z-index: 2500;
+        }
+        .zoo-empty-title {
+          font-size: 18px;
+          font-weight: bold;
+          margin-bottom: 8px;
+        }
+        .zoo-empty-text {
+          font-size: 13px;
+          line-height: 1.7;
+          margin-bottom: 12px;
+        }
+        .zoo-empty-btn {
+          font-size: 14px;
         }
 
         /* ---- 通知(準備中など) ---- */
