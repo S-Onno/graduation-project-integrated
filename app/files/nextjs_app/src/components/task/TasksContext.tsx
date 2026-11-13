@@ -6,6 +6,8 @@ import { useTasks } from '@/hooks/useTasks'
 import { TaskForm } from '@/components/task/TaskForm'
 import { TaskDetail } from '@/components/task/TaskDetail'
 import { filterTasks } from '@/lib/taskFilters'
+import { findAreaDef } from '@/lib/zooAreas'
+import type { AreaType } from '@/lib/zooAreas'
 import type { CompleteResult, PriorityValue, Task } from '@/lib/tasks'
 
 /* ============================================================
@@ -145,7 +147,10 @@ export function TasksProvider({
         showInfo('育成中の動物が少し育ちました')
       }
       if (data.areaUnlocked) {
-        setTimeout(() => showInfo(`新しいエリア「${data.areaUnlocked}」に入れるようになりました`), 1500)
+        // サーバーからは 'JUNGLE' のような種類が返るので、日本語のエリア名に直して出す
+        const area = findAreaDef(data.areaUnlocked as AreaType)
+        const label = area ? `${area.emoji} ${area.name}` : data.areaUnlocked
+        setTimeout(() => showInfo(`新しいエリア「${label}」が開園しました!`), 1500)
       }
     },
     [showInfo],

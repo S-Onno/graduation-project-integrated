@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { FIRST_AREA } from '@/lib/zooAreas'
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 
@@ -40,11 +41,11 @@ export async function POST(req: NextRequest) {
     data: { name: trimmedName || trimmedEmail.split('@')[0], email: trimmedEmail, password: hashed },
   })
 
-  // ジャングルエリアを解放
-  const jungle = await prisma.area.findUnique({ where: { area_type: 'JUNGLE' } })
-  if (jungle) {
+  // 最初のエリア(サバンナ)を開園する
+  const firstArea = await prisma.area.findUnique({ where: { area_type: FIRST_AREA } })
+  if (firstArea) {
     await prisma.userArea.create({
-      data: { userId: user.id, area_type: 'JUNGLE', is_unlocked: true, unlocked_at: new Date() },
+      data: { userId: user.id, area_type: FIRST_AREA, is_unlocked: true, unlocked_at: new Date() },
     })
   }
 

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sprites": "node scripts/sprites.mjs build",
+    "sprites:check": "node scripts/sprites.mjs check"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",
