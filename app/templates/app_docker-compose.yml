@@ -1,11 +1,11 @@
 # =============================================================================
 # 開発班ローカル専用 Docker Compose
 #
-#   起動: docker compose -f docker-compose.dev.yml up -d --build
-#   停止: docker compose -f docker-compose.dev.yml down
+#   起動: docker compose -f app/templates/app_docker-compose.yml up -d --build
+#   停止: docker compose -f app/templates/app_docker-compose.yml down
 #   確認: http://localhost:8080
 #
-# サーバー用の構成はインフラ班の app/templates/app_docker-compose.yml.j2（Ansible）
+# サーバー用の構成は同じフォルダの app_docker-compose.yml.j2（インフラ班・Ansible）
 # が正であり、このファイルはローカル確認のためだけに使う。
 # イメージのバージョンは app/defaults/main.yml に合わせること。
 # パスワード等はローカル専用のダミー値（本番では使わない）。
@@ -23,7 +23,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./dev/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../files/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       nextjs_app:
         condition: service_started
@@ -36,7 +36,7 @@ services:
   # ---------------------------------------------------------------------------
   nextjs_app:
     build:
-      context: ./app/files/nextjs_app
+      context: ../files/nextjs_app
       dockerfile: Dockerfile
       args:
         NODE_IMAGE: "node:22.23.4-alpine"
@@ -58,7 +58,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # 3. PostgreSQL（データは dev/postgres_db_data に保存、git 管理外）
+  # 3. PostgreSQL（データは app/templates/postgres_db_data に保存、git 管理外）
   # ---------------------------------------------------------------------------
   postgres_db:
     image: postgres:16.15-alpine
@@ -71,7 +71,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./dev/postgres_db_data:/var/lib/postgresql/data
+      - ./postgres_db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d app_db"]
       interval: 5s
