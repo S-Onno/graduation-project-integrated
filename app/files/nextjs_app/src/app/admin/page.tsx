@@ -85,7 +85,7 @@ export default function AdminPage() {
               <button className="btn-ghost" style={{ fontSize: '12px' }} onClick={() => fetchUserAnimals(user.id)}>
                 動物を確認
               </button>
-              {(['SAVANNA', 'SNOW', 'WATER'] as const).map(area => (
+              {(['JUNGLE', 'SNOW', 'WATER'] as const).map(area => (
                 <button key={area} className="btn-danger" style={{ fontSize: '12px' }} onClick={() => forceUnlockArea(user.id, area)}>
                   {area} 解放
                 </button>

@@ -9,7 +9,8 @@ import { useSession } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { TasksProvider, useTasksContext } from '@/components/task/TasksContext'
-import { IkuseiView, IkuseiHandle } from '@/app/zoo/training/page'
+import { IkuseiView } from '@/components/zoo/IkuseiView'
+import type { IkuseiHandle } from '@/components/zoo/IkuseiView'
 import { Icon } from '@/components/ui/Icon'
 
 /* ============================================================

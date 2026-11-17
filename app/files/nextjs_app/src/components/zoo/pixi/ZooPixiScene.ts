@@ -42,12 +42,12 @@ import {
   COMMAND_SPEED_PX,
   DEFAULT_WALK_AREA,
   EMOJI_BOX,
-  FOOT_PADDING,
   GATHER_RADIUS_PX,
-  SPRITE_ZOOM,
   WALK_SPEED_PX,
+  ZOO_SPRITE_SIZE,
 } from '@/lib/zooAreas'
 import type { AnimalDef, AreaDef } from '@/lib/zooAreas'
+import { contentSize, loadSpriteSheet } from '@/lib/spriteSheet'
 
 // ===== 設定 =====
 const MAX_RESOLUTION = 2 // 高精細な画面でも描く量が増えすぎないように、倍率の上限を決める
@@ -82,30 +82,32 @@ function rand(min: number, max: number): number {
   return Math.random() * (max - min) + min
 }
 
-// ===== スプライトシート(JSON)の型 =====
-interface SpriteSheetJson {
-  meta: { image: string }
-  frames: Record<string, { x: number; y: number; w: number; h: number; duration: number }>
-  animations: Record<string, number[]>
+// ===== スプライトのアニメーション =====
+// コマの組(歩く / 止まっている)と、表示する倍率
+interface SpriteAnim {
+  frames: FrameObject[]
+  scale: number
 }
 
-// JSON と画像から、PixiJS のアニメーション用のコマを作る
-async function loadAnimalFrames(jsonUrl: string): Promise<FrameObject[]> {
-  const res = await fetch(jsonUrl)
-  if (!res.ok) throw new Error(`スプライトを読み込めません: ${jsonUrl}`)
-  const json = (await res.json()) as SpriteSheetJson
-  const imageUrl = new URL(json.meta.image, new URL(jsonUrl, window.location.href)).pathname
-  const sheet = await Assets.load<Texture>(imageUrl)
-  sheet.source.scaleMode = 'nearest' // ドット絵をにじませない
+// JSON と画像から、PixiJS のアニメーション用のコマを作る。
+// コマは「透明でない部分」だけを切り出す(足元が画像の下端になる)。
+// 倍率は、絵の大きさが size(px)になるように決める
+async function loadAnimalAnim(jsonUrl: string, size: number): Promise<SpriteAnim> {
+  const sheet = await loadSpriteSheet(jsonUrl)
+  const texture = await Assets.load<Texture>(sheet.image)
+  texture.source.scaleMode = 'nearest' // ドット絵をにじませない
 
-  const order = json.animations.default ?? Object.keys(json.frames).map(Number)
-  return order.map((index) => {
-    const f = json.frames[String(index)]
-    return {
-      texture: new Texture({ source: sheet.source, frame: new Rectangle(f.x, f.y, f.w, f.h) }),
+  const { content } = sheet
+  return {
+    frames: sheet.frames.map((f) => ({
+      texture: new Texture({
+        source: texture.source,
+        frame: new Rectangle(f.x + content.x, f.y + content.y, content.w, content.h),
+      }),
       time: f.duration,
-    }
-  })
+    })),
+    scale: size / contentSize(sheet),
+  }
 }
 
 // ===== 粒子(星と光の玉) =====
@@ -140,6 +142,9 @@ interface Walker {
   name: string
   root: Container
   body: AnimatedSprite | Text
+  walkAnim: SpriteAnim | null // 歩くときのコマ(スプライトがない動物は null)
+  idleAnim: SpriteAnim | null // 止まっているときのコマ(なければ、歩くコマの最初で止まる)
+  shownAnim: SpriteAnim | null // いま表示しているコマの組
   ring: Graphics
   boxW: number
   boxH: number
@@ -398,37 +403,37 @@ export class ZooPixiScene {
   private async createWalkers() {
     const now = performance.now()
     for (const animal of this.animals) {
-      const zoom = animal.zoom ?? SPRITE_ZOOM
+      const size = ZOO_SPRITE_SIZE * (animal.scale ?? 1)
       let body: AnimatedSprite | Text
       let boxW: number
       let boxH: number
-      let footPad: number
+      const footPad = 0 // コマは足元で切り出してあるので、余白はない
 
-      const frames = animal.spriteJson
-        ? await loadAnimalFrames(animal.spriteJson).catch(() => null)
-        : null
+      // 読み込めないファイルは null にして、絵文字や「歩くコマで止まる」に切り替える
+      const sprite = animal.zooSprite
+      const [walkAnim, idleAnim] = await Promise.all([
+        sprite ? loadAnimalAnim(sprite.walk, size).catch(() => null) : null,
+        sprite?.idle ? loadAnimalAnim(sprite.idle, size).catch(() => null) : null,
+      ])
       if (this.destroyed) return
 
-      if (frames && frames.length > 0) {
-        const sprite = new AnimatedSprite(frames)
-        sprite.anchor.set(0.5, 1)
-        sprite.scale.set(zoom)
-        sprite.gotoAndStop(0)
-        body = sprite
-        boxW = frames[0].texture.frame.width * zoom
-        boxH = frames[0].texture.frame.height * zoom
-        footPad = (animal.footPadding ?? FOOT_PADDING) * zoom
+      if (walkAnim) {
+        const animated = new AnimatedSprite(walkAnim.frames)
+        animated.anchor.set(0.5, 1)
+        body = animated
+        const first = walkAnim.frames[0].texture.frame
+        boxW = first.width * walkAnim.scale
+        boxH = first.height * walkAnim.scale
       } else {
         // スプライトがない(読み込めない)動物は、絵文字で表示する
         const text = new Text({
           text: animal.emoji,
-          style: { fontSize: EMOJI_BOX * SPRITE_ZOOM * 0.8, fontFamily: 'sans-serif' },
+          style: { fontSize: EMOJI_BOX * 0.8, fontFamily: 'sans-serif' },
         })
         text.anchor.set(0.5, 1)
         body = text
-        boxW = EMOJI_BOX * SPRITE_ZOOM
-        boxH = EMOJI_BOX * SPRITE_ZOOM
-        footPad = 0
+        boxW = EMOJI_BOX
+        boxH = EMOJI_BOX
       }
       body.y = footPad // 画像の下の余白ぶん下げて、足元を地面に合わせる
 
@@ -458,6 +463,9 @@ export class ZooPixiScene {
         name: animal.name,
         root,
         body,
+        walkAnim,
+        idleAnim,
+        shownAnim: null,
         ring,
         boxW,
         boxH,
@@ -482,7 +490,23 @@ export class ZooPixiScene {
       })
       this.walkers.push(walker)
     }
+    for (const walker of this.walkers) this.showAnim(walker, false)
     this.placeWalkers(now)
+  }
+
+  // 歩くコマ / 止まっているコマに切り替える(左右の向きはそのまま)
+  private showAnim(walker: Walker, moving: boolean) {
+    const body = walker.body
+    if (!(body instanceof AnimatedSprite) || !walker.walkAnim) return
+    const anim = moving ? walker.walkAnim : (walker.idleAnim ?? walker.walkAnim)
+    if (walker.shownAnim !== anim) {
+      body.textures = anim.frames
+      walker.shownAnim = anim
+    }
+    const flip = body.scale.x < 0 ? -1 : 1
+    body.scale.set(anim.scale * flip, anim.scale)
+    if (moving || walker.idleAnim) body.play()
+    else body.gotoAndStop(0)
   }
 
   // 名前の札(HTML 版と同じ、暗い背景に明るい文字)
@@ -622,7 +646,7 @@ export class ZooPixiScene {
     walker.moving = true
     // 左に歩くときは、左右を反転(画像は右向き)
     if (Math.abs(dxPx) > 4) walker.body.scale.x = Math.abs(walker.body.scale.x) * (dxPx < 0 ? -1 : 1)
-    if (walker.body instanceof AnimatedSprite) walker.body.play()
+    this.showAnim(walker, true)
     return walker.duration
   }
 
@@ -632,7 +656,7 @@ export class ZooPixiScene {
       walker.pos = this.lerp(walker.from, walker.to, t)
     }
     walker.moving = false
-    if (walker.body instanceof AnimatedSprite) walker.body.gotoAndStop(0)
+    this.showAnim(walker, false)
   }
 
   // 指示された移動を終える(着いたときの処理を呼ぶ)
