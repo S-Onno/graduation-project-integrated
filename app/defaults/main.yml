@@ -18,8 +18,6 @@ app_http_port: 80
 app_https_port: 443
 app_web_port: 80
 app_ssl_dir: "/opt/app/ssl"
-certbot_admin_email: "admin@woodvillage.jp"
-certbot_dns_ready: false
 
 # コンテナイメージバージョン
 version_image_nginx: "1.30.6-alpine"
@@ -38,7 +36,7 @@ sysctl_somaxconn: 2048
 sysctl_tcp_max_syn_backlog: 2048
 sysctl_netdev_max_backlog: 2048
 
-# DB設定
+# DB設定 ＆ 認証機密 (group_vars/secrets.yml の Ansible Vault 定義を適用)
 db_name: "app_db"
-db_root_password: "!g8RvdqtF+XuHNsgZJXK"
-nextauth_secret: "RkHY94HEHoN!dWx!D3De"
+db_root_password: "{{ vault_db_root_password }}"
+nextauth_secret: "{{ vault_nextauth_secret }}"
