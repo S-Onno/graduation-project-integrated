@@ -16,12 +16,14 @@ import {
 } from '@/lib/zooAreas'
 import type { AnimalDef, AreaDef, AreaType } from '@/lib/zooAreas'
 import type { ZooPixiControl } from '@/components/zoo/pixi/ZooPixiCanvas'
+import { ZukanPanel, buildZukanRecords, discoveredKeys, useZukanSeen } from '@/components/zoo/ZukanPanel'
 
 /* ============================================================
  * 動物園画面(1エリアを壁紙つきで表示し、動物が歩き回る)
  *
  * - 「動物園」を開くと、1つのエリアが画面いっぱいに表示される
  * - エリアの切り替えは、右下の「エリアマップ」ボタンから行う
+ * - 右下の「図鑑」ボタンで、動物図鑑を画面の上に重ねて開く(components/zoo/ZukanPanel.tsx)
  * - 動物と演出(タップの反応・目印・光の柱など)は PixiJS(<canvas>)で描く
  *   (components/zoo/pixi/)。壁紙・パネル・ボタンは HTML のまま
  * - 歩いているのは、育成パネルで「動物園へ送る」をした大人の動物だけ
@@ -45,6 +47,7 @@ interface UserAnimal {
   id: string
   stage: string
   is_placed: boolean
+  acquired_at?: string
   animal: { name: string; area_type: string }
 }
 
@@ -81,13 +84,18 @@ function backgroundStyle(def: AreaDef): CSSProperties {
   }
 }
 
-export function ZooScreen() {
+interface ZooScreenProps {
+  initialPanel?: 'zukan' // 開いたときに図鑑を出す(/zoo/zukan から開いたとき)
+}
+
+export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [areas, setAreas] = useState<Area[]>([])
   const [userAnimals, setUserAnimals] = useState<UserAnimal[]>([])
   const [currentType, setCurrentType] = useState<AreaType>(FIRST_AREA) // 最初はサバンナを表示
   const [mapOpen, setMapOpen] = useState(false)
+  const [zukanOpen, setZukanOpen] = useState(initialPanel === 'zukan')
   const [previewAll, setPreviewAll] = useState(true) // テスト用: 全エリアを解放した状態で確認する
   const [notice, setNotice] = useState('')
   const pixiRef = useRef<ZooPixiControl | null>(null)
@@ -128,6 +136,13 @@ export function ZooScreen() {
     return map
   }, [userAnimals])
 
+  // 図鑑の「NEW」の数(メニューの図鑑ボタンに出す)
+  const { seen: zukanSeen } = useZukanSeen(session?.user?.id)
+  const zukanNewCount = useMemo(
+    () => discoveredKeys(buildZukanRecords(userAnimals)).filter((key) => !zukanSeen.has(key)).length,
+    [userAnimals, zukanSeen],
+  )
+
   if (status === 'loading') return null
 
   // ----- 表示用の計算 -----
@@ -136,6 +151,13 @@ export function ZooScreen() {
     const found = areas.find((a) => a.area_type === type)
     if (found) return found.is_unlocked
     return type === FIRST_AREA // APIから取れない場合は、最初のエリアだけ開園扱い
+  }
+
+  // 本当に開園しているか(テスト用の「全エリア解放」に関係なく、DB の状態で判定する。図鑑で使う)
+  const isReallyUnlocked = (type: AreaType): boolean => {
+    const found = areas.find((a) => a.area_type === type)
+    if (found) return found.is_unlocked
+    return type === FIRST_AREA
   }
 
   const areaName = (def: AreaDef): string =>
@@ -152,6 +174,12 @@ export function ZooScreen() {
   const handleMenu = (button: MenuButton) => {
     if (button.id === 'map') {
       setMapOpen((prev) => !prev)
+      setZukanOpen(false)
+      return
+    }
+    if (button.id === 'book') {
+      setZukanOpen(true)
+      setMapOpen(false)
       return
     }
     if (button.href) {
@@ -270,16 +298,36 @@ export function ZooScreen() {
         {MENU_BUTTONS.map((button) => (
           <button
             key={button.id}
-            className={`zoo-btn zoo-menu-btn${button.id === 'map' && mapOpen ? ' active' : ''}`}
+            className={`zoo-btn zoo-menu-btn${(button.id === 'map' && mapOpen) || (button.id === 'book' && zukanOpen) ? ' active' : ''}`}
             onClick={() => handleMenu(button)}
           >
             <span className="zoo-menu-icon">{button.icon}</span>
             <span className="zoo-menu-label">{button.label}</span>
+            {button.id === 'book' && zukanNewCount > 0 && (
+              <span className="zoo-menu-badge" aria-label={`図鑑に新しい動物 ${zukanNewCount}`}>
+                {zukanNewCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       {notice && <div className="zoo-notice">{notice}</div>}
+
+      {/* ===== 図鑑(画面の上に重ねて開く) ===== */}
+      {zukanOpen && (
+        <ZukanPanel
+          userId={session?.user?.id}
+          userAnimals={userAnimals}
+          isUnlocked={isReallyUnlocked}
+          areaName={(type) => {
+            const def = AREA_DEFS.find((a) => a.type === type)
+            return def ? areaName(def) : type
+          }}
+          initialArea={activeType}
+          onClose={() => setZukanOpen(false)}
+        />
+      )}
 
       <style jsx global>{`
         .zoo-stage {
@@ -442,6 +490,7 @@ export function ZooScreen() {
           z-index: 3000;
         }
         .zoo-menu-btn {
+          position: relative;
           width: 80px;
           height: 80px;
           display: flex;
@@ -453,6 +502,18 @@ export function ZooScreen() {
         }
         .zoo-menu-btn.active {
           background: #ffe066;
+        }
+        .zoo-menu-badge {
+          position: absolute;
+          top: -10px;
+          right: -10px;
+          min-width: 24px;
+          padding: 2px 4px;
+          font-size: 12px;
+          font-weight: bold;
+          color: #fff;
+          background: #c0392b;
+          border: 3px solid #0b0d17;
         }
         .zoo-menu-icon {
           font-size: 28px;
