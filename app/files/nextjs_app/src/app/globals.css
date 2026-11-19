@@ -859,3 +859,40 @@ body {
 }
 .za-switch a { color: var(--c-green-dark); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 
+
+/* ===== スマホを横にしたときの案内(スマホは縦向きだけに対応する。src/lib/screen.ts) =====
+   指で操作する画面で、横長かつ高さが 500px 未満のときだけ出す(PC の小さいウィンドウでは出さない) */
+.rotate-notice {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 500px) and (hover: none) and (pointer: coarse) {
+  .rotate-notice {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: #1e2235;
+    color: #f4e6b8;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+  }
+  .rotate-notice-icon {
+    font-size: 48px;
+    animation: rotate-notice-turn 1.6s ease-in-out infinite;
+  }
+}
+@keyframes rotate-notice-turn {
+  0%,
+  30% {
+    transform: rotate(-90deg);
+  }
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
