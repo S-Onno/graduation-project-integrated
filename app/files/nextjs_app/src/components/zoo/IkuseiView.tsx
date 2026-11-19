@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
-import { ADULTS_TO_UNLOCK, AREA_ORDER, FIRST_AREA, findAnimalDef, findAreaDef } from '@/lib/zooAreas'
+import { AREA_ORDER, FIRST_AREA, SPECIES_PER_AREA, countAdultSpecies, findAnimalDef, findAreaDef } from '@/lib/zooAreas'
 import type { AreaType, Stage } from '@/lib/zooAreas'
 import { frameStyle, spriteWidth, useSpriteSheet } from '@/components/zoo/useSpriteSheet'
 
@@ -397,7 +397,7 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
   const unlockedTypes = AREA_ORDER.filter((type) => areas.find((a) => a.area_type === type)?.is_unlocked)
   const currentArea: AreaType = unlockedTypes[unlockedTypes.length - 1] ?? FIRST_AREA
   const nextArea: AreaType | null = AREA_ORDER[AREA_ORDER.indexOf(currentArea) + 1] ?? null
-  const adultsInCurrent = adults.filter((a) => a.animal.area_type === currentArea).length
+  const adultsInCurrent = countAdultSpecies(list, currentArea) // 大人まで育てた種類の数
   const areaLabel = (type: AreaType): string => {
     const def = findAreaDef(type)
     const name = areas.find((a) => a.area_type === type)?.name ?? def?.name ?? type
@@ -473,8 +473,8 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
         {ready && (
           <div className="ik-hud ik-hud-area">
             <p className="ik-hud-label">{areaLabel(currentArea)}</p>
-            <p className="ik-stars" aria-label={`大人 ${adultsInCurrent} / ${ADULTS_TO_UNLOCK} 匹`}>
-              {Array.from({ length: ADULTS_TO_UNLOCK }, (_, i) => (
+            <p className="ik-stars" aria-label={`大人まで育てた種類 ${adultsInCurrent} / ${SPECIES_PER_AREA}`}>
+              {Array.from({ length: SPECIES_PER_AREA }, (_, i) => (
                 <span key={i} className={i < adultsInCurrent ? 'on' : ''}>
                   ★
                 </span>
@@ -483,7 +483,7 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
             <p className="ik-hud-sub">
               {nextArea ? (
                 <>
-                  あと<strong>{Math.max(ADULTS_TO_UNLOCK - adultsInCurrent, 0)}</strong>匹で
+                  あと<strong>{Math.max(SPECIES_PER_AREA - adultsInCurrent, 0)}</strong>種で
                   <br />
                   {areaLabel(nextArea)}開園
                 </>

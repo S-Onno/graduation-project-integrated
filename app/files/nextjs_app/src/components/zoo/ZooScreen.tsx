@@ -6,11 +6,12 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
-  ADULTS_TO_UNLOCK,
   AREA_DEFS,
   AREA_ORDER,
   DEFAULT_WALK_AREA,
   FIRST_AREA,
+  SPECIES_PER_AREA,
+  countAdultSpecies,
   findAnimalDef,
   zooAnimalDef,
 } from '@/lib/zooAreas'
@@ -163,8 +164,8 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
   const areaName = (def: AreaDef): string =>
     areas.find((a) => a.area_type === def.type)?.name ?? def.name
 
-  const adultCount = (type: AreaType): number =>
-    userAnimals.filter((a) => a.stage === 'ADULT' && a.animal.area_type === type).length
+  // 大人まで育てた種類の数(全種類そろうと、次のエリアが開園する)
+  const adultCount = (type: AreaType): number => countAdultSpecies(userAnimals, type)
 
   const showNotice = (message: string) => {
     setNotice(message)
@@ -241,7 +242,7 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
           {activeDef.emoji} {areaName(activeDef)}
         </span>
         <span className="zoo-area-sub">
-          大人 {adultCount(activeDef.type)} / {ADULTS_TO_UNLOCK} 匹
+          大人 {adultCount(activeDef.type)} / {SPECIES_PER_AREA} 種
         </span>
       </div>
 
