@@ -39,10 +39,22 @@ export interface AreaDef {
 }
 
 // ===== エリアが開園する順番(サーバーの src/lib/game.ts でも使う) =====
-// 最初はサバンナだけが開園していて、大人が3匹そろうと次のエリアが開園する
+// 最初はサバンナだけが開園していて、そのエリアの全種類(3種)を大人まで育てると、次のエリアが開園する
+// エリアの最初の3匹は、同じ種類が重ならないように選ぶ(src/lib/game.ts)
 export const AREA_ORDER: AreaType[] = ['SAVANNA', 'JUNGLE', 'SNOW', 'WATER']
 export const FIRST_AREA: AreaType = AREA_ORDER[0]
-export const ADULTS_TO_UNLOCK = 3 // 次のエリアが開園するのに必要な、大人の数
+export const SPECIES_PER_AREA = 3 // 1つのエリアの動物の種類の数(開園の条件で使う)
+
+// エリアで、大人まで育てた種類の数(同じ種類を何匹育てても1と数える)
+export function countAdultSpecies(
+  userAnimals: { stage: string; animal: { name: string; area_type: string } }[],
+  type: AreaType,
+): number {
+  const names = userAnimals
+    .filter((a) => a.stage === 'ADULT' && a.animal.area_type === type)
+    .map((a) => a.animal.name)
+  return new Set(names).size
+}
 
 // ===== 動物の見た目・動きの設定 =====
 // 動物園での動物の大きさ(px)。絵の 横×縦 の平方根がこの値になるように拡大・縮小する
@@ -135,7 +147,7 @@ export const AREA_DEFS: AreaDef[] = [
     sunbeams: true,
     name: 'ジャングル',
     emoji: '🌿',
-    unlockHint: 'サバンナで大人を3匹育てると開園',
+    unlockHint: 'サバンナの3種を大人まで育てると開園',
     fallback: 'linear-gradient(#86d0a8 0%, #86d0a8 18%, #3f9b4a 18%, #2b6e34 100%)',
     animals: [
       animal('ゴリラ', '🦍', 'gorilla'),
@@ -147,7 +159,7 @@ export const AREA_DEFS: AreaDef[] = [
     type: 'SNOW',
     name: '雪',
     emoji: '❄️',
-    unlockHint: 'ジャングルで大人を3匹育てると開園',
+    unlockHint: 'ジャングルの3種を大人まで育てると開園',
     fallback: 'linear-gradient(#bfe3ff 0%, #bfe3ff 20%, #eaf4ff 20%, #cfe3f5 100%)',
     animals: [
       animal('シロクマ', '🐻‍❄️', 'polar-bear'),
@@ -159,7 +171,7 @@ export const AREA_DEFS: AreaDef[] = [
     type: 'WATER',
     name: '水',
     emoji: '🌊',
-    unlockHint: '雪で大人を3匹育てると開園',
+    unlockHint: '雪の3種を大人まで育てると開園',
     fallback: 'linear-gradient(#9fd4ff 0%, #9fd4ff 18%, #4f9fe0 18%, #2f6fb0 100%)',
     animals: [
       animal('カバ', '🦛', 'hippo'),

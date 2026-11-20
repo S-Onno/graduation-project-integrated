@@ -53,6 +53,11 @@ import { contentSize, loadSpriteSheet } from '@/lib/spriteSheet'
 const MAX_RESOLUTION = 2 // 高精細な画面でも描く量が増えすぎないように、倍率の上限を決める
 const STATS_INTERVAL_MS = 500 // fps と粒子の数を知らせる間隔
 const LABEL_FONT_SIZE = 12 // 名前の札の文字の大きさ
+// 動物の大きさの倍率(壁紙が見えている幅 ÷ ANIMAL_SCALE_BASE_PX)。画面が小さいほど小さくなる
+const ANIMAL_SCALE_BASE_PX = 1280 // この幅で壁紙が見えているときを等倍にする(ノートPCの全画面くらい)
+const ANIMAL_SCALE_MIN = 0.3 // スマホ(360px)のとき
+const ANIMAL_SCALE_MAX = 1.5 // 大きな画面でも、大きくなりすぎないように
+const MIN_TAP_PX = 44 // 動物をタップできる範囲の、いちばん小さい大きさ(px)
 
 // キラキラ(タップ)
 const SPARKLE_LIFE_MS = 700
@@ -146,7 +151,10 @@ interface Walker {
   idleAnim: SpriteAnim | null // 止まっているときのコマ(なければ、歩くコマの最初で止まる)
   shownAnim: SpriteAnim | null // いま表示しているコマの組
   ring: Graphics
-  boxW: number
+  label: Container
+  baseW: number // 等倍のときの大きさ(px)
+  baseH: number
+  boxW: number // いまの大きさ(px)。画面の大きさに合わせて変わる(animalScale 倍)
   boxH: number
   footPad: number
   pos: WalkPoint // いまいる場所(壁紙に対する%)
@@ -189,6 +197,7 @@ export class ZooPixiScene {
   private selected: Walker | null = null
   private resizeObserver: ResizeObserver | null = null
   private world = { x: 0, y: 0, w: 0, h: 0 } // 壁紙が画面いっぱいに広がったときの位置と大きさ(px)
+  private animalScale = 1 // 動物の大きさの倍率。壁紙の大きさ(画面の大きさ)に合わせて変わる
   private statsElapsed = 0
   private ready = false
   private destroyed = false
@@ -451,13 +460,12 @@ export class ZooPixiScene {
 
       const root = new Container()
       root.addChild(shadow, ring, body, label)
-      // タップを受け取る範囲は、画像の透明な余白を除いた体のあたりにする
       root.eventMode = 'static'
       root.cursor = 'pointer'
-      root.hitArea = new Rectangle(-boxW * 0.35, footPad - boxH * 0.9, boxW * 0.7, boxH * 0.9)
       this.animalLayer.addChild(root)
 
-      const visible = this.visibleAreaFor(boxW, boxH)
+      const scale = this.animalScale
+      const visible = this.visibleAreaFor(boxW * scale, boxH * scale)
       const start = pickStandingPoint(this.walkArea, visible) ?? this.walkArea[0]
       const walker: Walker = {
         name: animal.name,
@@ -467,8 +475,11 @@ export class ZooPixiScene {
         idleAnim,
         shownAnim: null,
         ring,
-        boxW,
-        boxH,
+        label,
+        baseW: boxW,
+        baseH: boxH,
+        boxW: boxW * scale,
+        boxH: boxH * scale,
         footPad,
         pos: start,
         from: start,
@@ -488,6 +499,7 @@ export class ZooPixiScene {
         e.stopPropagation() // 地面のタップとして扱わない
         this.handleAnimalTap(walker, e)
       })
+      this.applyScale(walker)
       this.walkers.push(walker)
     }
     for (const walker of this.walkers) this.showAnim(walker, false)
@@ -531,6 +543,20 @@ export class ZooPixiScene {
 
   // ----- 画面サイズ -----
 
+  // 動物の大きさを、いまの倍率に合わせる(名前の札と、タップできる範囲の大きさは変えない)
+  private applyScale(walker: Walker) {
+    const scale = this.animalScale
+    walker.boxW = walker.baseW * scale
+    walker.boxH = walker.baseH * scale
+    walker.root.scale.set(scale)
+    walker.label.scale.set(1 / scale) // 文字は小さくしない(12px のまま)
+    // タップを受け取る範囲は、画像の透明な余白を除いた体のあたり。
+    // 動物が小さいときも、指で押せるように画面上で MIN_TAP_PX 以上にする
+    const hitW = Math.max(walker.baseW * 0.7, MIN_TAP_PX / scale)
+    const hitH = Math.max(walker.baseH * 0.9, MIN_TAP_PX / scale)
+    walker.root.hitArea = new Rectangle(-hitW / 2, walker.footPad - hitH, hitW, hitH)
+  }
+
   private visibleAreaFor(boxW: number, boxH: number): VisibleArea {
     return getVisibleArea(
       this.app.screen.width,
@@ -560,6 +586,10 @@ export class ZooPixiScene {
     const w = size ? size.w * scale : viewW
     const h = size ? size.h * scale : viewH
     this.world = { x: (viewW - w) / 2, y: (viewH - h) / 2, w, h }
+
+    // 動物の大きさ: 壁紙が 1280px くらいの幅で見えているときを等倍にして、壁紙の大きさに比例させる
+    this.animalScale = Math.min(ANIMAL_SCALE_MAX, Math.max(ANIMAL_SCALE_MIN, w / ANIMAL_SCALE_BASE_PX))
+    for (const walker of this.walkers) this.applyScale(walker)
 
     // 行き先が見えなくなった動物は、すぐに見える場所へ歩き直す
     const now = performance.now()
@@ -627,7 +657,7 @@ export class ZooPixiScene {
       walker.restUntil = now + rand(1000, 4000)
       return
     }
-    this.startTrip(walker, to, WALK_SPEED_PX, now)
+    this.startTrip(walker, to, WALK_SPEED_PX * this.animalScale, now)
   }
 
   private lerp(from: WalkPoint, to: WalkPoint, t: number): WalkPoint {
@@ -762,7 +792,7 @@ export class ZooPixiScene {
     }
     const destination = resolveDestination(wanted, this.walkArea, walker.visible)
     const to = lastReachablePoint(walker.pos, destination, this.walkArea)
-    const duration = this.startTrip(walker, to, COMMAND_SPEED_PX, now)
+    const duration = this.startTrip(walker, to, COMMAND_SPEED_PX * this.animalScale, now)
     walker.commanded = true
     walker.onArrive = onArrive
     walker.resumeAt = now + duration + COMMAND_PAUSE_MS

@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
-import { ADULTS_TO_UNLOCK, AREA_ORDER, FIRST_AREA, findAnimalDef, findAreaDef } from '@/lib/zooAreas'
+import { AREA_ORDER, FIRST_AREA, SPECIES_PER_AREA, countAdultSpecies, findAnimalDef, findAreaDef } from '@/lib/zooAreas'
 import type { AreaType, Stage } from '@/lib/zooAreas'
 import { frameStyle, spriteWidth, useSpriteSheet } from '@/components/zoo/useSpriteSheet'
 
@@ -397,7 +397,7 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
   const unlockedTypes = AREA_ORDER.filter((type) => areas.find((a) => a.area_type === type)?.is_unlocked)
   const currentArea: AreaType = unlockedTypes[unlockedTypes.length - 1] ?? FIRST_AREA
   const nextArea: AreaType | null = AREA_ORDER[AREA_ORDER.indexOf(currentArea) + 1] ?? null
-  const adultsInCurrent = adults.filter((a) => a.animal.area_type === currentArea).length
+  const adultsInCurrent = countAdultSpecies(list, currentArea) // 大人まで育てた種類の数
   const areaLabel = (type: AreaType): string => {
     const def = findAreaDef(type)
     const name = areas.find((a) => a.area_type === type)?.name ?? def?.name ?? type
@@ -473,8 +473,8 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
         {ready && (
           <div className="ik-hud ik-hud-area">
             <p className="ik-hud-label">{areaLabel(currentArea)}</p>
-            <p className="ik-stars" aria-label={`大人 ${adultsInCurrent} / ${ADULTS_TO_UNLOCK} 匹`}>
-              {Array.from({ length: ADULTS_TO_UNLOCK }, (_, i) => (
+            <p className="ik-stars" aria-label={`大人まで育てた種類 ${adultsInCurrent} / ${SPECIES_PER_AREA}`}>
+              {Array.from({ length: SPECIES_PER_AREA }, (_, i) => (
                 <span key={i} className={i < adultsInCurrent ? 'on' : ''}>
                   ★
                 </span>
@@ -483,7 +483,7 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
             <p className="ik-hud-sub">
               {nextArea ? (
                 <>
-                  あと<strong>{Math.max(ADULTS_TO_UNLOCK - adultsInCurrent, 0)}</strong>匹で
+                  あと<strong>{Math.max(SPECIES_PER_AREA - adultsInCurrent, 0)}</strong>種で
                   <br />
                   {areaLabel(nextArea)}開園
                 </>
@@ -879,7 +879,7 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
           line-height: 1.35;
         }
         .ik-hud-label {
-          font-size: 11px;
+          font-size: 12px;
           color: #ffe066;
         }
         .ik-hud-title {
@@ -887,7 +887,7 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
           font-weight: bold;
         }
         .ik-hud-sub {
-          font-size: 11px;
+          font-size: 12px;
         }
         .ik-hud-sub strong {
           margin: 0 2px;
@@ -904,6 +904,16 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
           right: 9px;
           max-width: 46%;
           text-align: right;
+        }
+        /* 狭いパネル(スマホの引き出し)では、上の2つの枠を少し広げ、文字が折れにくいようにする */
+        @container (max-width: 400px) {
+          .ik-hud {
+            padding: 5px 6px;
+          }
+          .ik-hud-name,
+          .ik-hud-area {
+            max-width: 50%;
+          }
         }
         .ik-stars {
           font-size: 15px;
@@ -940,7 +950,7 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
         }
         .ik-cell {
           position: relative;
-          height: 16px;
+          height: 18px;
           background: #3a3f5c;
           border: 2px solid #0b0d17;
         }
@@ -967,7 +977,7 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
           inset: 0;
           display: grid;
           place-items: center;
-          font-size: 10px;
+          font-size: 12px;
           color: #ffd84a;
           text-shadow: 1px 1px 0 #0b0d17;
         }
@@ -1058,7 +1068,7 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
           padding: 1px 8px;
           background: #c0392b;
           color: #fff;
-          font-size: 11px;
+          font-size: 12px;
           animation: ik-blink-badge 1s steps(2) infinite;
         }
         @keyframes ik-blink-badge {
@@ -1103,8 +1113,11 @@ export const IkuseiView = forwardRef<IkuseiHandle, IkuseiViewProps>(function Iku
           font-weight: bold;
         }
         .ik-adult-area {
-          font-size: 11px;
+          font-size: 12px;
           color: #b9b08c;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .ik-placed {
           font-size: 12px;

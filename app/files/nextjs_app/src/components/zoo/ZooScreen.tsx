@@ -6,17 +6,19 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
-  ADULTS_TO_UNLOCK,
   AREA_DEFS,
   AREA_ORDER,
   DEFAULT_WALK_AREA,
   FIRST_AREA,
+  SPECIES_PER_AREA,
+  countAdultSpecies,
   findAnimalDef,
   zooAnimalDef,
 } from '@/lib/zooAreas'
 import type { AnimalDef, AreaDef, AreaType } from '@/lib/zooAreas'
 import type { ZooPixiControl } from '@/components/zoo/pixi/ZooPixiCanvas'
-import { ZukanPanel, buildZukanRecords, discoveredKeys, useZukanSeen } from '@/components/zoo/ZukanPanel'
+import { AnimalArt, ZukanPanel, buildZukanRecords, discoveredKeys, useZukanSeen } from '@/components/zoo/ZukanPanel'
+import { PHONE_QUERY, useMediaQuery } from '@/lib/screen'
 
 /* ============================================================
  * 動物園画面(1エリアを壁紙つきで表示し、動物が歩き回る)
@@ -27,6 +29,11 @@ import { ZukanPanel, buildZukanRecords, discoveredKeys, useZukanSeen } from '@/c
  * - 動物と演出(タップの反応・目印・光の柱など)は PixiJS(<canvas>)で描く
  *   (components/zoo/pixi/)。壁紙・パネル・ボタンは HTML のまま
  * - 歩いているのは、育成パネルで「動物園へ送る」をした大人の動物だけ
+ * - 画面の大きさ(区切りは src/lib/screen.ts)
+ *   - PC(横長の画面): エリアが画面いっぱい。左上にユーザー情報、上にエリア名、右下にメニュー
+ *   - PCより狭い(1023px 以下): ユーザー情報とエリア名を、左上の1つの枠にまとめる
+ *   - スマホ・縦長の画面: 上から「ユーザー情報とエリア名」「エリア全体(上下が少し切れる)」
+ *     「このエリアの動物の状況」「メニュー」の順に並べる。テスト用のボタンは出さない
  * - 動物は、スプライトシート(JSON + PNG)があればそのアニメーションで、
  *   なければ絵文字で、画面内を歩き回る
  * ============================================================ */
@@ -138,6 +145,7 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
 
   // 図鑑の「NEW」の数(メニューの図鑑ボタンに出す)
   const { seen: zukanSeen } = useZukanSeen(session?.user?.id)
+  const isPhone = useMediaQuery(PHONE_QUERY)
   const zukanNewCount = useMemo(
     () => discoveredKeys(buildZukanRecords(userAnimals)).filter((key) => !zukanSeen.has(key)).length,
     [userAnimals, zukanSeen],
@@ -147,7 +155,7 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
 
   // ----- 表示用の計算 -----
   const isUnlocked = (type: AreaType): boolean => {
-    if (previewAll) return true
+    if (previewAll && !isPhone) return true // スマホにはテスト用のボタンがないので、本当の状態で表示する
     const found = areas.find((a) => a.area_type === type)
     if (found) return found.is_unlocked
     return type === FIRST_AREA // APIから取れない場合は、最初のエリアだけ開園扱い
@@ -163,8 +171,8 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
   const areaName = (def: AreaDef): string =>
     areas.find((a) => a.area_type === def.type)?.name ?? def.name
 
-  const adultCount = (type: AreaType): number =>
-    userAnimals.filter((a) => a.stage === 'ADULT' && a.animal.area_type === type).length
+  // 大人まで育てた種類の数(全種類そろうと、次のエリアが開園する)
+  const adultCount = (type: AreaType): number => countAdultSpecies(userAnimals, type)
 
   const showNotice = (message: string) => {
     setNotice(message)
@@ -199,11 +207,24 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
   }
 
   const userName = session?.user?.name ?? 'ゲスト'
+  const zukanRecords = buildZukanRecords(userAnimals)
   const unlockedCount = AREA_DEFS.filter((a) => isUnlocked(a.type)).length
   const placedCount = userAnimals.filter((a) => a.is_placed).length
   const activeType: AreaType = isUnlocked(currentType) ? currentType : FIRST_AREA
   const activeDef = AREA_DEFS.find((a) => a.type === activeType) ?? AREA_DEFS[0]
   const animalsHere = placedByArea[activeDef.type]
+  const nextType: AreaType | null = AREA_ORDER[AREA_ORDER.indexOf(activeType) + 1] ?? null
+  const nextDef = nextType ? AREA_DEFS.find((a) => a.type === nextType) : undefined
+
+  // このエリアの動物の状況(スマホ・縦長の画面で、エリアの下に出す)
+  const speciesStatus = (name: string): { known: boolean; text: string } => {
+    const record = zukanRecords.get(name)
+    if (!record || record.stages.size === 0) return { known: false, text: 'まだ出会っていない' }
+    if (record.placedCount > 0) return { known: true, text: `動物園に ${record.placedCount} 匹` }
+    if (record.adultCount > 0) return { known: true, text: '大人(動物園へ送れる)' }
+    if (record.stages.has('CHILD')) return { known: true, text: '子供(育成中)' }
+    return { known: true, text: '赤ちゃん(育成中)' }
+  }
 
   return (
     <div className="zoo-stage">
@@ -223,6 +244,67 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
         </div>
         {/* 動物と演出(壁紙の上に、透明な canvas を重ねて描く) */}
         <ZooPixiCanvas def={activeDef} animals={animalsHere} controlRef={pixiRef} />
+
+        {/* ===== まだ動物がいないエリアの案内 ===== */}
+        {animalsHere.length === 0 && (
+          <div className="zoo-panel zoo-empty">
+            <p className="zoo-empty-title">まだ動物がいません</p>
+            <p className="zoo-empty-text">
+              タスクを完了して動物を大人に育て、
+              <br />
+              育成パネルの「動物園へ送る」で迎えましょう
+            </p>
+            <button className="zoo-btn zoo-empty-btn" onClick={() => router.push('/tasks')}>
+              📋 タスクへ
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ===== PCより狭い画面: ユーザー情報とエリア名を1つにまとめた枠 ===== */}
+      <div className="zoo-panel zoo-hud-bar">
+        <div className="zoo-avatar">{userName.charAt(0)}</div>
+        <div className="zoo-hud-bar-main">
+          <p className="zoo-hud-bar-area">
+            {activeDef.emoji} {areaName(activeDef)}
+            <span className="zoo-area-sub">
+              大人 {adultCount(activeDef.type)} / {SPECIES_PER_AREA} 種
+            </span>
+          </p>
+          <p className="zoo-user-stat">
+            {userName} ・ 🗺️ {unlockedCount}/4 エリア ・ 🐾 {placedCount}/12 匹
+          </p>
+        </div>
+      </div>
+
+      {/* ===== スマホ・縦長の画面: このエリアの動物の状況 ===== */}
+      <div className="zoo-panel zoo-info">
+        <p className="zoo-info-title">
+          {activeDef.emoji} {areaName(activeDef)}の動物
+        </p>
+        <ul className="zoo-info-list">
+          {activeDef.animals.map((animal) => {
+            const status = speciesStatus(animal.name)
+            const record = zukanRecords.get(animal.name)
+            const shownStage = record?.stages.has('ADULT') ? 'ADULT' : record?.stages.has('CHILD') ? 'CHILD' : 'BABY'
+            return (
+              <li key={animal.name} className="zoo-info-row">
+                <span className="zoo-info-icon">
+                  <AnimalArt name={animal.name} stage={shownStage} discovered={status.known} playing={false} fit={90} />
+                </span>
+                <span className="zoo-info-name">{status.known ? animal.name : '？？？'}</span>
+                <span className={`zoo-info-status${status.known ? '' : ' unknown'}`}>{status.text}</span>
+              </li>
+            )
+          })}
+        </ul>
+        <p className="zoo-info-next">
+          {!nextDef
+            ? '🎉 すべてのエリアが開園しました'
+            : isUnlocked(nextDef.type)
+              ? `次のエリア ${nextDef.emoji}${areaName(nextDef)} は開園しています`
+              : `あと ${Math.max(SPECIES_PER_AREA - adultCount(activeDef.type), 0)} 種を大人にすると ${nextDef.emoji}${areaName(nextDef)} が開園`}
+        </p>
       </div>
 
       {/* ===== 左上: ユーザー情報 ===== */}
@@ -241,26 +323,11 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
           {activeDef.emoji} {areaName(activeDef)}
         </span>
         <span className="zoo-area-sub">
-          大人 {adultCount(activeDef.type)} / {ADULTS_TO_UNLOCK} 匹
+          大人 {adultCount(activeDef.type)} / {SPECIES_PER_AREA} 種
         </span>
       </div>
 
-      {/* ===== まだ動物がいないエリアの案内 ===== */}
-      {animalsHere.length === 0 && (
-        <div className="zoo-panel zoo-empty">
-          <p className="zoo-empty-title">まだ動物がいません</p>
-          <p className="zoo-empty-text">
-            タスクを完了して動物を大人に育て、
-            <br />
-            育成パネルの「動物園へ送る」で迎えましょう
-          </p>
-          <button className="zoo-btn zoo-empty-btn" onClick={() => router.push('/tasks')}>
-            📋 タスクへ
-          </button>
-        </div>
-      )}
-
-      {/* ===== 右上: テスト用(あとで削除) ===== */}
+      {/* ===== 右上: テスト用(あとで削除。スマホでは出さない) ===== */}
       <button className="zoo-btn zoo-debug" onClick={() => setPreviewAll((prev) => !prev)}>
         テスト: 全エリア解放 {previewAll ? 'ON' : 'OFF'}
       </button>
@@ -520,7 +587,7 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
           line-height: 1;
         }
         .zoo-menu-label {
-          font-size: 11px;
+          font-size: 12px;
           font-weight: bold;
           line-height: 1.2;
           text-align: center;
@@ -611,11 +678,195 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
           left: 50%;
           bottom: 130px;
           transform: translateX(-50%);
+          max-width: calc(100% - 32px);
           background: #1e2235;
           border: 4px solid #f4e6b8;
           padding: 8px 16px;
           font-size: 14px;
           z-index: 3500;
+        }
+
+        /* ---- まとめた枠・動物の状況(PC では出さない) ---- */
+        .zoo-hud-bar,
+        .zoo-info {
+          display: none;
+        }
+        .zoo-hud-bar {
+          align-items: center;
+          gap: 10px;
+          padding: 8px 12px;
+        }
+        .zoo-hud-bar .zoo-avatar {
+          width: 44px;
+          height: 44px;
+          font-size: 22px;
+          flex-shrink: 0;
+        }
+        .zoo-hud-bar-main {
+          min-width: 0;
+        }
+        .zoo-hud-bar-area {
+          display: flex;
+          align-items: baseline;
+          flex-wrap: wrap;
+          gap: 4px 12px;
+          font-size: 17px;
+          font-weight: bold;
+        }
+        .zoo-info-title {
+          font-size: 14px;
+          font-weight: bold;
+          margin-bottom: 8px;
+        }
+        .zoo-info-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          list-style: none;
+          margin: 0;
+          padding: 0;
+        }
+        .zoo-info-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 4px 8px;
+          background: #2a2f48;
+          border: 2px solid #0b0d17;
+        }
+        .zoo-info-icon {
+          container-type: inline-size;
+          width: 44px;
+          height: 44px;
+          flex-shrink: 0;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+        }
+        .zoo-info-name {
+          font-size: 14px;
+          font-weight: bold;
+          min-width: 4.5em;
+        }
+        .zoo-info-status {
+          margin-left: auto;
+          font-size: 12px;
+          color: #7bd85a;
+          text-align: right;
+        }
+        .zoo-info-status.unknown {
+          color: #9a9fb8;
+        }
+        .zoo-info-next {
+          margin-top: 10px;
+          font-size: 12px;
+          color: #ffe066;
+        }
+
+        /* ===== PC より狭い画面(1023px 以下): ユーザー情報とエリア名を1つの枠にまとめる ===== */
+        @media (max-width: 1023px) {
+          .zoo-hud-user,
+          .zoo-area-title {
+            display: none;
+          }
+          .zoo-hud-bar {
+            display: flex;
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            max-width: calc(100% - 240px); /* 右上のテスト用ボタンと重ならないように */
+          }
+        }
+
+        /* ===== スマホ(599px 以下)・縦長の画面: 上から順に並べる ===== */
+        @media (max-width: 599px), (max-aspect-ratio: 1/1) {
+          .zoo-stage {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 12px 12px 0;
+          }
+          .zoo-hud-bar {
+            display: flex;
+            position: relative;
+            top: auto;
+            left: auto;
+            order: 1;
+            flex: none;
+          }
+          /* エリア全体を横幅いっぱいに見せる(上下は少し切れてよい) */
+          .zoo-scene {
+            position: relative;
+            inset: auto;
+            order: 2;
+            flex: none;
+            width: 100%;
+            aspect-ratio: 16 / 8.5;
+            max-height: 55dvh;
+            border: 4px solid #0b0d17;
+          }
+          .zoo-info {
+            display: block;
+            order: 3;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 10px 12px;
+          }
+          .zoo-menu {
+            position: relative;
+            right: auto;
+            bottom: auto;
+            order: 4;
+            flex: none;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 120px));
+            justify-content: center;
+            gap: 10px;
+            padding: 4px 4px 14px;
+          }
+          .zoo-menu-btn {
+            width: auto;
+            height: 64px;
+          }
+          .zoo-menu-icon {
+            font-size: 24px;
+          }
+          .zoo-map-panel {
+            left: 12px;
+            right: 12px;
+            bottom: 96px;
+            width: auto;
+          }
+          .zoo-notice {
+            bottom: 96px;
+          }
+          /* エリアの中に出す案内は、小さくする */
+          .zoo-empty {
+            padding: 8px 10px;
+          }
+          .zoo-empty-title {
+            font-size: 14px;
+            margin-bottom: 4px;
+          }
+          .zoo-empty-text {
+            font-size: 12px;
+            line-height: 1.5;
+            margin-bottom: 0;
+          }
+          .zoo-empty-btn {
+            display: none; /* 下のメニューの「タスク」から行ける */
+          }
+        }
+
+        /* ===== スマホ: テスト用のボタンは出さない ===== */
+        @media (max-width: 599px) {
+          .zoo-debug {
+            display: none;
+          }
+          .zoo-hud-bar {
+            max-width: none;
+          }
         }
       `}</style>
     </div>
