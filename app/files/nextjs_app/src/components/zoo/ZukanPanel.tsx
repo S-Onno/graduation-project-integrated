@@ -157,7 +157,7 @@ export function useZukanSeen(userId: string | undefined) {
 }
 
 // ===== 動物の絵(静止画。playing のときだけ歩くアニメーション) =====
-function AnimalArt({
+export function AnimalArt({
   name,
   stage,
   discovered,
@@ -198,27 +198,53 @@ function AnimalArt({
   }, [sheet, playing, discovered, fit])
 
   const label = discovered ? `${name}(${STAGE_LABEL[stage]})` : 'まだ育てていない動物'
+  // 絵の見た目の CSS は、この部品と一緒に読み込む(図鑑の外、動物園の「動物の状況」でも使うため)
+  const artStyle = (
+    <style jsx global>{`
+      .zk-art {
+        display: block;
+        image-rendering: pixelated;
+      }
+      .zk-sprite {
+        background-repeat: no-repeat;
+      }
+      .zk-emoji {
+        line-height: 1;
+      }
+      /* まだ育てていない段階: 同じ絵を真っ黒にしてシルエットにする */
+      .zk-silhouette {
+        filter: brightness(0);
+        opacity: 0.55;
+      }
+    `}</style>
+  )
   if (sheet) {
     return (
-      <div
-        ref={frameRef}
-        className={`zk-art zk-sprite${discovered ? '' : ' zk-silhouette'}`}
-        style={frameStyle(sheet, sheet.frames[0], fitWidth(sheet, fit))}
-        role="img"
-        aria-label={label}
-      />
+      <>
+        {artStyle}
+        <div
+          ref={frameRef}
+          className={`zk-art zk-sprite${discovered ? '' : ' zk-silhouette'}`}
+          style={frameStyle(sheet, sheet.frames[0], fitWidth(sheet, fit))}
+          role="img"
+          aria-label={label}
+        />
+      </>
     )
   }
   if (state.status === 'loading') return <div className="zk-art" style={{ width: `${fit}cqw` }} />
   return (
-    <span
-      className={`zk-art zk-emoji${discovered ? '' : ' zk-silhouette'}`}
-      style={{ fontSize: `${fit * 0.62}cqw` }}
-      role="img"
-      aria-label={label}
-    >
-      {findAnimalDef(name)?.emoji ?? '🐾'}
-    </span>
+    <>
+      {artStyle}
+      <span
+        className={`zk-art zk-emoji${discovered ? '' : ' zk-silhouette'}`}
+        style={{ fontSize: `${fit * 0.62}cqw` }}
+        role="img"
+        aria-label={label}
+      >
+        {findAnimalDef(name)?.emoji ?? '🐾'}
+      </span>
+    </>
   )
 }
 
@@ -533,7 +559,7 @@ export function ZukanPanel({ userId, userAnimals, isUnlocked, areaName, initialA
           font-weight: bold;
         }
         .zk-tab-count {
-          font-size: 11px;
+          font-size: 12px;
         }
         .zk-dot {
           position: absolute;
@@ -612,23 +638,8 @@ export function ZukanPanel({ userId, userAnimals, isUnlocked, areaName, initialA
           justify-content: center;
           padding-bottom: 6%;
         }
-        .zk-art {
-          display: block;
-          image-rendering: pixelated;
-        }
-        .zk-sprite {
-          background-repeat: no-repeat;
-        }
-        .zk-emoji {
-          line-height: 1;
-        }
-        /* まだ育てていない段階: 同じ絵を真っ黒にしてシルエットにする */
-        .zk-silhouette {
-          filter: brightness(0);
-          opacity: 0.55;
-        }
         .zk-card-name {
-          font-size: 11px;
+          font-size: 12px;
           font-weight: bold;
         }
         .zk-new {
@@ -636,7 +647,7 @@ export function ZukanPanel({ userId, userAnimals, isUnlocked, areaName, initialA
           top: -8px;
           left: -6px;
           padding: 1px 5px;
-          font-size: 10px;
+          font-size: 12px;
           font-weight: bold;
           color: #fff;
           background: #c0392b;
@@ -773,8 +784,17 @@ export function ZukanPanel({ userId, userAnimals, isUnlocked, areaName, initialA
           .zk-title {
             font-size: 16px;
           }
+          .zk-tabs {
+            gap: 6px;
+          }
+          .zk-tab {
+            padding: 6px 1px;
+            border-width: 2px;
+          }
           .zk-tab-name {
-            font-size: 10px;
+            font-size: 12px;
+            letter-spacing: -0.04em;
+            white-space: nowrap;
           }
           .zk-grid {
             gap: 6px;

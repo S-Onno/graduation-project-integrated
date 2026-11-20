@@ -14,6 +14,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SessionProvider>
           {children}
         </SessionProvider>
+        {/* スマホを横にしたときだけ出す(縦向きだけに対応するため。CSS は globals.css) */}
+        <div className="rotate-notice" role="alert">
+          <span className="rotate-notice-icon">📱</span>
+          <p>スマートフォンは縦向きでご利用ください</p>
+        </div>
       </body>
     </html>
   )
