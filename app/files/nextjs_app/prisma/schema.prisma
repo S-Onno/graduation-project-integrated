@@ -20,6 +20,13 @@ enum AnimalStage {
   ADULT
 }
 
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+  NONE
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -81,6 +88,8 @@ model Task {
   userId      String
   title       String
   description String?
+  due_date    DateTime?
+  priority    Priority  @default(NONE)
   is_done     Boolean   @default(false)
   done_at     DateTime?
   created_at  DateTime  @default(now())

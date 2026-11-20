@@ -6,8 +6,9 @@ const prisma = new PrismaClient({ adapter })
 
 async function main() {
   const areas = [
-    { name: 'ジャングル', area_type: 'JUNGLE' as const, order: 1 },
-    { name: 'サバンナ',   area_type: 'SAVANNA' as const, order: 2 },
+    // 開園する順番(order)は、サバンナ → ジャングル → 雪 → 水
+    { name: 'サバンナ',   area_type: 'SAVANNA' as const, order: 1 },
+    { name: 'ジャングル', area_type: 'JUNGLE' as const, order: 2 },
     { name: '雪',         area_type: 'SNOW' as const,    order: 3 },
     { name: '水',         area_type: 'WATER' as const,   order: 4 },
   ]
@@ -15,7 +16,7 @@ async function main() {
   for (const area of areas) {
     await prisma.area.upsert({
       where: { area_type: area.area_type },
-      update: {},
+      update: { name: area.name, order: area.order }, // すでにあるDBも、順番を新しい値に直す
       create: area,
     })
   }
