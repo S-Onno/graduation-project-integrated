@@ -27,7 +27,7 @@ export interface ZukanUserAnimal {
 interface ZukanPanelProps {
   userId: string | undefined
   userAnimals: ZukanUserAnimal[]
-  isUnlocked: (type: AreaType) => boolean // エリアが開園しているか(テスト用の切り替えに関係なく、本当の状態)
+  isUnlocked: (type: AreaType) => boolean // エリアが開園しているか
   areaName: (type: AreaType) => string
   initialArea: AreaType
   onClose: () => void
