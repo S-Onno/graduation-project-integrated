@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -16,9 +16,7 @@ import {
   zooAnimalDef,
 } from '@/lib/zooAreas'
 import type { AnimalDef, AreaDef, AreaType } from '@/lib/zooAreas'
-import type { ZooPixiControl } from '@/components/zoo/pixi/ZooPixiCanvas'
 import { AnimalArt, ZukanPanel, buildZukanRecords, discoveredKeys, useZukanSeen } from '@/components/zoo/ZukanPanel'
-import { PHONE_QUERY, useMediaQuery } from '@/lib/screen'
 
 /* ============================================================
  * 動物園画面(1エリアを壁紙つきで表示し、動物が歩き回る)
@@ -33,7 +31,7 @@ import { PHONE_QUERY, useMediaQuery } from '@/lib/screen'
  *   - PC(横長の画面): エリアが画面いっぱい。左上にユーザー情報、上にエリア名、右下にメニュー
  *   - PCより狭い(1023px 以下): ユーザー情報とエリア名を、左上の1つの枠にまとめる
  *   - スマホ・縦長の画面: 上から「ユーザー情報とエリア名」「エリア全体(上下が少し切れる)」
- *     「このエリアの動物の状況」「メニュー」の順に並べる。テスト用のボタンは出さない
+ *     「このエリアの動物の状況」「メニュー」の順に並べる
  * - 動物は、スプライトシート(JSON + PNG)があればそのアニメーションで、
  *   なければ絵文字で、画面内を歩き回る
  * ============================================================ */
@@ -103,9 +101,7 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
   const [currentType, setCurrentType] = useState<AreaType>(FIRST_AREA) // 最初はサバンナを表示
   const [mapOpen, setMapOpen] = useState(false)
   const [zukanOpen, setZukanOpen] = useState(initialPanel === 'zukan')
-  const [previewAll, setPreviewAll] = useState(true) // テスト用: 全エリアを解放した状態で確認する
   const [notice, setNotice] = useState('')
-  const pixiRef = useRef<ZooPixiControl | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
@@ -145,7 +141,6 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
 
   // 図鑑の「NEW」の数(メニューの図鑑ボタンに出す)
   const { seen: zukanSeen } = useZukanSeen(session?.user?.id)
-  const isPhone = useMediaQuery(PHONE_QUERY)
   const zukanNewCount = useMemo(
     () => discoveredKeys(buildZukanRecords(userAnimals)).filter((key) => !zukanSeen.has(key)).length,
     [userAnimals, zukanSeen],
@@ -155,17 +150,9 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
 
   // ----- 表示用の計算 -----
   const isUnlocked = (type: AreaType): boolean => {
-    if (previewAll && !isPhone) return true // スマホにはテスト用のボタンがないので、本当の状態で表示する
     const found = areas.find((a) => a.area_type === type)
     if (found) return found.is_unlocked
     return type === FIRST_AREA // APIから取れない場合は、最初のエリアだけ開園扱い
-  }
-
-  // 本当に開園しているか(テスト用の「全エリア解放」に関係なく、DB の状態で判定する。図鑑で使う)
-  const isReallyUnlocked = (type: AreaType): boolean => {
-    const found = areas.find((a) => a.area_type === type)
-    if (found) return found.is_unlocked
-    return type === FIRST_AREA
   }
 
   const areaName = (def: AreaDef): string =>
@@ -243,7 +230,7 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
           )}
         </div>
         {/* 動物と演出(壁紙の上に、透明な canvas を重ねて描く) */}
-        <ZooPixiCanvas def={activeDef} animals={animalsHere} controlRef={pixiRef} />
+        <ZooPixiCanvas def={activeDef} animals={animalsHere} />
 
         {/* ===== まだ動物がいないエリアの案内 ===== */}
         {animalsHere.length === 0 && (
@@ -327,14 +314,6 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
         </span>
       </div>
 
-      {/* ===== 右上: テスト用(あとで削除。スマホでは出さない) ===== */}
-      <button className="zoo-btn zoo-debug" onClick={() => setPreviewAll((prev) => !prev)}>
-        テスト: 全エリア解放 {previewAll ? 'ON' : 'OFF'}
-      </button>
-      <button className="zoo-btn zoo-debug" style={{ top: 56 }} onClick={() => pixiRef.current?.playGrowth()}>
-        テスト: 光の柱
-      </button>
-
       {/* ===== 右下: エリアマップ(簡易的な地図) ===== */}
       {mapOpen && (
         <div className="zoo-panel zoo-map-panel">
@@ -386,7 +365,7 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
         <ZukanPanel
           userId={session?.user?.id}
           userAnimals={userAnimals}
-          isUnlocked={isReallyUnlocked}
+          isUnlocked={isUnlocked}
           areaName={(type) => {
             const def = AREA_DEFS.find((a) => a.type === type)
             return def ? areaName(def) : type
@@ -537,16 +516,6 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
           font-weight: normal;
         }
 
-        /* ---- 右上: テスト用ボタン ---- */
-        .zoo-debug {
-          position: absolute;
-          top: 16px;
-          right: 16px;
-          z-index: 3000;
-          font-size: 12px;
-          padding: 6px 10px;
-        }
-
         /* ---- 右下: メニューボタン ---- */
         .zoo-menu {
           position: absolute;
@@ -600,6 +569,9 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
           right: 20px;
           bottom: 130px;
           width: 250px;
+          /* ほかの枠(3000)より上に出す。縦長の画面では「このエリアの動物」の枠と重なり、
+             並べ替え(order)の大きい枠が上に描かれるため、同じ値だと下に隠れてしまう */
+          z-index: 3100;
         }
         .zoo-map-title {
           font-size: 14px;
@@ -774,7 +746,7 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
             position: absolute;
             top: 16px;
             left: 16px;
-            max-width: calc(100% - 240px); /* 右上のテスト用ボタンと重ならないように */
+            max-width: calc(100% - 32px);
           }
         }
 
@@ -859,11 +831,8 @@ export function ZooScreen({ initialPanel }: ZooScreenProps = {}) {
           }
         }
 
-        /* ===== スマホ: テスト用のボタンは出さない ===== */
+        /* ===== スマホ ===== */
         @media (max-width: 599px) {
-          .zoo-debug {
-            display: none;
-          }
           .zoo-hud-bar {
             max-width: none;
           }
