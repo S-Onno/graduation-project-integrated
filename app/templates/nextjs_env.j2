@@ -1,0 +1,7 @@
+# ============================================================
+# Next.js アプリケーション環境変数 (Ansible自動生成 / IP直結モード)
+# ============================================================
+DATABASE_URL="postgresql://postgres:{{ vault_db_root_password | string | urlencode }}@postgres_db:5432/{{ db_name | default('app_db') }}?schema=public"
+NEXTAUTH_SECRET="{{ vault_nextauth_secret }}"
+NEXTAUTH_URL="https://{{ hostvars['server-b']['ansible_host'] | default(ansible_host | default('10.149.245.115')) }}"
+

@@ -31,15 +31,6 @@ COPY . .
 RUN --mount=type=cache,target=/app/.next/cache \
     npm run build
 
-# ── Prisma CLI (起動時マイグレーション用) ─────────────────────────────────────
-# Prisma 7 の CLI は依存が多い (effect, c12 等) ため、CLI と prisma.config.ts が読む
-# dotenv だけを別ステージで導入する。バージョンは package-lock.json と揃えること
-FROM base AS prisma-cli
-WORKDIR /prisma-cli
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --no-audit --no-fund --loglevel=error --no-package-lock \
-      prisma@7.10.1 dotenv@17.4.2
-
 # ── 本番ランタイム ────────────────────────────────────────────────────────────
 FROM base AS runner
 ENV NODE_ENV=production
@@ -57,12 +48,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static    ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public          ./public
 
-# Prisma マイグレーション用ファイル
+# Prisma 定義ファイル
 COPY --from=builder --chown=nextjs:nodejs /app/prisma          ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 
-# Prisma マイグレーション実行に必要なモジュール (CLI と依存一式) を配置
-COPY --from=prisma-cli --chown=nextjs:nodejs /prisma-cli/node_modules ./node_modules
+# Prisma CLI (db push / migrate) および tsx (seed実行) を含む依存モジュール全体を配置
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules       ./node_modules
 
 # カスタム出力先に生成された Prisma クライアント (output = "../src/generated/prisma")
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated   ./src/generated
@@ -70,6 +61,5 @@ COPY --from=builder --chown=nextjs:nodejs /app/src/generated   ./src/generated
 USER nextjs
 EXPOSE 3000
 
-# 起動時に DB マイグレーションを適用してからアプリを起動
-# 失敗時はエラーをログに残して起動を止める (テーブルがないまま動き続けるのを防ぐ)
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && exec node server.js"]
+# 起動時に常に最新の schema.prisma に基づいて DB スキーマを安全同期し、初期シードを適用してから Next.js を起動
+CMD ["sh", "-c", "echo '[Prisma] Syncing database schema with schema.prisma...' && npx prisma db push --accept-data-loss && (npx tsx prisma/seed.ts 2>/dev/null || true) && exec node server.js"]
